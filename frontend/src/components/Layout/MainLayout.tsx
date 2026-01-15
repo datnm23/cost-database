@@ -1,0 +1,75 @@
+import { ReactNode } from 'react'
+import { Layout, Menu, Button } from 'antd'
+import {
+  DashboardOutlined,
+  FolderOutlined,
+  UploadOutlined,
+  UnorderedListOutlined,
+  BarChartOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+} from '@ant-design/icons'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/store/authStore'
+
+const { Header, Sider, Content } = Layout
+
+interface MainLayoutProps {
+  children: ReactNode
+}
+
+export default function MainLayout({ children }: MainLayoutProps) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user, logout } = useAuthStore()
+
+  const menuItems = [
+    { key: '/', label: 'Dashboard', icon: <DashboardOutlined /> },
+    { key: '/projects', label: 'Projects', icon: <FolderOutlined /> },
+    { key: '/upload', label: 'Upload BOQ', icon: <UploadOutlined /> },
+    { key: '/line-items', label: 'Line Items', icon: <UnorderedListOutlined /> },
+    { key: '/analytics', label: 'Analytics', icon: <BarChartOutlined /> },
+    { key: '/settings', label: 'Settings', icon: <SettingOutlined /> },
+  ]
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider theme="dark" width={250}>
+        <div style={{ padding: '16px', color: 'white', fontSize: '18px', fontWeight: 'bold', textAlign: 'center' }}>
+          BOQ System
+        </div>
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={({ key }) => navigate(key)}
+        />
+        <div style={{ position: 'absolute', bottom: 16, width: '100%', padding: '0 16px' }}>
+          <Button
+            type="text"
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            style={{ width: '100%', color: 'white' }}
+          >
+            Logout
+          </Button>
+        </div>
+      </Sider>
+      <Layout>
+        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0 }}>Bill of Quantities Management</h2>
+          <span>Welcome, {user?.full_name || user?.username}</span>
+        </Header>
+        <Content style={{ margin: '24px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
+          {children}
+        </Content>
+      </Layout>
+    </Layout>
+  )
+}

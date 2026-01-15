@@ -1,0 +1,46 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Layout } from 'antd'
+import MainLayout from './components/Layout/MainLayout'
+import Login from './pages/Auth/Login'
+import Dashboard from './pages/Dashboard'
+import Projects from './pages/Projects'
+import FileUpload from './pages/FileUpload'
+import LineItems from './pages/LineItems'
+import Analytics from './pages/Analytics'
+import Settings from './pages/Settings'
+import { useAuthStore } from './store/authStore'
+
+const { Content } = Layout
+
+function App() {
+  const { isAuthenticated } = useAuthStore()
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/*"
+          element={
+            isAuthenticated ? (
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/upload" element={<FileUpload />} />
+                  <Route path="/line-items" element={<LineItems />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </MainLayout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
