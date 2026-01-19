@@ -9,6 +9,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.ai_config import load_model_cpu_optimized, CPUOptimizedConfig
 from app.models.sec_code import SECCode
 
 logger = logging.getLogger(__name__)
@@ -52,8 +53,12 @@ class SECClassifier:
         """
         Initialize the classification model with SEC codes from database
         """
-        logger.info("Loading sentence transformer model...")
-        self.model = SentenceTransformer(settings.MODEL_NAME)
+        logger.info("Loading sentence transformer model with CPU optimization...")
+        # Use CPU-optimized model loading
+        self.model = load_model_cpu_optimized(
+            settings.MODEL_NAME, 
+            cache_folder=str(self.model_path)
+        )
         
         # Fetch SEC codes from database
         if not self.db:

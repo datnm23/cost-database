@@ -1,0 +1,86 @@
+# Optimized Dockerfile for CPU-only AI (Production)
+FROM python:3.11-slim as builder
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables for CPU-only builds
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TORCH_CUDA_ARCH_LIST="" \
+    FORCE_CUDA=0 \
+    USE_CUDA=0 \
+    CPU_ONLY=1
+
+# Install only essential system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    libssl-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy requirements
+COPY requirements-cpu.txt requirements.txt
+
+# Install Python dependencies in specific order for CPU optimization
+RUN pip install --upgrade pip && \
+    # Install PyTorch CPU first to avoid GPU version
+    pip install --no-cache-dir torch==2.2.0+cpu -f https://download.pytorch.org/whl/torch_stable.html && \
+    # Install other ML dependencies
+    pip install --no-cache-dir scikit-learn==1.4.0 numpy==1.26.4 && \
+    # Install sentence transformers (will use CPU torch)
+    pip install --no-cache-dir sentence-transformers==2.3.1 && \
+    # Install FastAPI and other core dependencies first
+    pip install --no-cache-dir fastapi uvicorn[standard] sqlalchemy pymysql redis && \
+    # Install remaining dependencies
+    pip install --no-cache-dir -r requirements.txt
+
+# Production stage
+FROM python:3.11-slim as production
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CPU_ONLY=1 \
+    TORCH_CUDA_ARCH_LIST="" \
+    FORCE_CUDA=0
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Create necessary directories
+RUN mkdir -p uploads models logs && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
