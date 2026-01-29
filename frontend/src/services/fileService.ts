@@ -33,9 +33,10 @@ export const fileService = {
   uploadFile: async (projectId: number, file: File, onProgress?: (progress: number) => void) => {
     const formData = new FormData()
     formData.append('file', file)
-    
+    formData.append('project_id', projectId.toString())
+
     const response = await apiClient.post<BOQFile>(
-      `/files/upload?project_id=${projectId}`,
+      `/files/upload`,
       formData,
       {
         headers: {
