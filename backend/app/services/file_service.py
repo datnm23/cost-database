@@ -87,37 +87,54 @@ class FileService:
             file_id=file_id,
             project_id=boq_file.project_id
         )
-        
-        # Get classifier
-        classifier = get_classifier(self.db)
-        
+
+        # Get classifier (optional - skip if not available)
+        try:
+            classifier = get_classifier(self.db)
+            use_classifier = True
+        except Exception as e:
+            logger.warning(f"Classifier not available, skipping classification: {e}")
+            classifier = None
+            use_classifier = False
+
         # Process and save each line item
         processed_count = 0
         total_amount = 0
-        
+
         for item_data in line_items_data:
-            # Classify description
-            classification_results = classifier.classify(
-                item_data['description'],
-                top_k=1
-            )
-            
-            if classification_results:
-                sec_code, confidence = classification_results[0]
-                item_data['sec_code'] = sec_code
-                item_data['confidence_score'] = confidence
-                item_data['classification_method'] = (
-                    ClassificationMethod.AUTO if confidence >= 80 else ClassificationMethod.AUTO
-                )
+            # Classify description if classifier is available
+            if use_classifier and classifier:
+                try:
+                    classification_results = classifier.classify(
+                        item_data['description'],
+                        top_k=1
+                    )
+
+                    if classification_results:
+                        sec_code, confidence = classification_results[0]
+                        item_data['sec_code'] = sec_code
+                        item_data['confidence_score'] = confidence
+                        item_data['classification_method'] = (
+                            ClassificationMethod.AUTO if confidence >= 80 else ClassificationMethod.AUTO
+                        )
+                    else:
+                        item_data['sec_code'] = None
+                        item_data['confidence_score'] = 0
+                        item_data['classification_method'] = ClassificationMethod.AUTO
+                except Exception as e:
+                    logger.warning(f"Classification failed for item, skipping: {e}")
+                    item_data['sec_code'] = None
+                    item_data['confidence_score'] = 0
+                    item_data['classification_method'] = ClassificationMethod.AUTO
             else:
                 item_data['sec_code'] = None
                 item_data['confidence_score'] = 0
                 item_data['classification_method'] = ClassificationMethod.AUTO
-            
+
             # Create line item
             line_item = LineItem(**item_data)
             self.db.add(line_item)
-            
+
             processed_count += 1
             total_amount += item_data['amount']
         

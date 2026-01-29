@@ -59,39 +59,36 @@ export default function FileUpload() {
       return fileService.uploadFile(selectedProject, file, setUploadProgress)
     },
     onSuccess: (data) => {
+      console.log('Upload response:', data)
       message.success('File uploaded successfully')
-      setFileId(data.id)
-      setCurrentStep(1)
-      analyzeMutation.mutate(data.id)
+      setFileId(data.file_id)
+
+      // Use structure from upload response
+      if (data.structure) {
+        console.log('Structure found:', data.structure)
+        setFileStructure(data.structure)
+
+        // Auto-detect column mapping based on common column names
+        const autoMapping: Record<string, string> = {}
+        data.structure.columns.forEach((col: string) => {
+          const lower = col.toLowerCase()
+          if (lower.includes('item') && lower.includes('no')) autoMapping['item_number'] = col
+          if (lower.includes('description') || lower.includes('desc')) autoMapping['description'] = col
+          if (lower.includes('quantity') || lower.includes('qty')) autoMapping['quantity'] = col
+          if (lower.includes('unit') && !lower.includes('price')) autoMapping['unit'] = col
+          if (lower.includes('unit') && lower.includes('price')) autoMapping['unit_price'] = col
+          if (lower.includes('total') || lower.includes('amount')) autoMapping['total_price'] = col
+        })
+        setColumnMapping(autoMapping)
+        setCurrentStep(2) // Skip analyze step, go directly to mapping
+      } else {
+        console.error('No structure in response')
+      }
     },
     onError: () => {
       message.error('Failed to upload file')
       setUploadedFile(null)
       setUploadProgress(0)
-    },
-  })
-
-  // Analyze mutation
-  const analyzeMutation = useMutation({
-    mutationFn: fileService.analyzeStructure,
-    onSuccess: (data) => {
-      setFileStructure(data)
-      // Auto-detect column mapping based on common column names
-      const autoMapping: Record<string, string> = {}
-      data.columns.forEach((col: string) => {
-        const lower = col.toLowerCase()
-        if (lower.includes('item') && lower.includes('no')) autoMapping['item_number'] = col
-        if (lower.includes('description') || lower.includes('desc')) autoMapping['description'] = col
-        if (lower.includes('quantity') || lower.includes('qty')) autoMapping['quantity'] = col
-        if (lower.includes('unit') && !lower.includes('price')) autoMapping['unit'] = col
-        if (lower.includes('unit') && lower.includes('price')) autoMapping['unit_price'] = col
-        if (lower.includes('total') || lower.includes('amount')) autoMapping['total_price'] = col
-      })
-      setColumnMapping(autoMapping)
-      setCurrentStep(2)
-    },
-    onError: () => {
-      message.error('Failed to analyze file structure')
     },
   })
 
@@ -189,7 +186,7 @@ export default function FileUpload() {
       <Card>
         <Steps current={currentStep} style={{ marginBottom: 32 }}>
           <Step title="Select Project & Upload" icon={<UploadOutlined />} />
-          <Step title="Analyze Structure" icon={<SyncOutlined spin={analyzeMutation.isPending} />} />
+          <Step title="Analyze Structure" icon={<SyncOutlined spin={uploadMutation.isPending && currentStep === 1} />} />
           <Step title="Map Columns & Process" icon={<CheckCircleOutlined />} />
         </Steps>
 
@@ -277,20 +274,20 @@ export default function FileUpload() {
 
             <h3>Column Mapping</h3>
             <Form layout="vertical" style={{ marginBottom: 24 }}>
-              {requiredColumns.map((col) => (
+              {requiredColumns.map((field) => (
                 <Form.Item
-                  key={col.key}
+                  key={field.key}
                   label={
                     <span>
-                      {col.label}
-                      {col.required && <Tag color="red" style={{ marginLeft: 8 }}>Required</Tag>}
+                      {field.label}
+                      {field.required && <Tag color="red" style={{ marginLeft: 8 }}>Required</Tag>}
                     </span>
                   }
                 >
                   <Select
-                    placeholder={`Select column for ${col.label}`}
-                    value={columnMapping[col.key]}
-                    onChange={(value) => setColumnMapping({ ...columnMapping, [col.key]: value })}
+                    placeholder={`Select column for ${field.label}`}
+                    value={columnMapping[field.key] && fileStructure.columns.includes(columnMapping[field.key]) ? columnMapping[field.key] : undefined}
+                    onChange={(value) => setColumnMapping({ ...columnMapping, [field.key]: value })}
                     allowClear
                   >
                     {fileStructure.columns.map((col) => (

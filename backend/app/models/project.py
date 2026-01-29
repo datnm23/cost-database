@@ -6,16 +6,16 @@ from app.core.database import Base
 
 
 class ProjectType(str, enum.Enum):
-    RESIDENTIAL = "residential"
-    COMMERCIAL = "commercial"
-    INDUSTRIAL = "industrial"
-    INFRASTRUCTURE = "infrastructure"
+    residential = "residential"
+    commercial = "commercial"
+    industrial = "industrial"
+    infrastructure = "infrastructure"
 
 
 class ProjectStatus(str, enum.Enum):
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    active = "active"
+    completed = "completed"
+    cancelled = "cancelled"
 
 
 class Project(Base):
@@ -29,7 +29,7 @@ class Project(Base):
     client_name = Column(String(255))
     contract_value = Column(DECIMAL(18, 2))
     start_date = Column(DateTime)
-    status = Column(Enum(ProjectStatus, values_callable=lambda x: [e.value for e in x]), default=ProjectStatus.ACTIVE)
+    status = Column(Enum(ProjectStatus, values_callable=lambda x: [e.value for e in x]), default=ProjectStatus.active)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     

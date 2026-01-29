@@ -6,8 +6,8 @@ from app.core.database import Base
 
 
 class FileStatus(str, enum.Enum):
-    DRAFT = "draft"
-    APPROVED = "approved"
+    draft = "draft"
+    approved = "approved"
 
 
 class BOQFile(Base):
@@ -20,7 +20,7 @@ class BOQFile(Base):
     file_path = Column(String(500))
     total_rows = Column(Integer, default=0)
     total_amount = Column(DECIMAL(18, 2), default=0)
-    status = Column(Enum(FileStatus), default=FileStatus.DRAFT)
+    status = Column(Enum(FileStatus), default=FileStatus.draft)
     uploaded_at = Column(DateTime, server_default=func.now())
     uploaded_by = Column(Integer, ForeignKey("users.user_id"))
     

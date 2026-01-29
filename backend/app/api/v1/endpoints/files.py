@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, Dict
+from pydantic import BaseModel
 import logging
 
 from app.core.database import get_db
@@ -13,6 +14,12 @@ from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+class ProcessFileRequest(BaseModel):
+    column_mapping: Dict[str, str]
+    has_headers: Optional[bool] = True
+    sheet_name: Optional[str] = None
 
 
 @router.post("/upload", status_code=201)
@@ -52,16 +59,20 @@ async def upload_file(
         file_content = await file.read()
         await file.seek(0)
         file_hash = processor.calculate_file_hash(file_content)
-        
+
         # Check for duplicates
         existing_file = service.check_duplicate(file_hash)
         if existing_file:
+            # Analyze structure even for duplicate files
+            structure = service.analyze_file_structure(existing_file.file_path)
             return {
                 "message": "File already exists",
                 "file_id": existing_file.file_id,
+                "filename": existing_file.file_name,
+                "structure": structure,
                 "is_duplicate": True
             }
-        
+
         # Save file to disk
         file_path = service.save_uploaded_file(file.file, file.filename, project_id)
         
@@ -96,7 +107,7 @@ async def upload_file(
 @router.post("/{file_id}/process")
 async def process_file(
     file_id: int,
-    column_mapping: Dict[str, str],
+    request: ProcessFileRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -106,26 +117,26 @@ async def process_file(
     Step 2: Parse, clean, classify and save data
     """
     service = FileService(db)
-    
+
     # Get file record
     boq_file = service.get_file(file_id)
     if not boq_file:
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     try:
         # Process file (this might take a while for large files)
         result = service.process_file(
             file_id=file_id,
             file_path=boq_file.file_path,
-            column_mapping=column_mapping,
+            column_mapping=request.column_mapping,
             user_id=current_user.user_id
         )
-        
+
         return {
             "message": "File processed successfully",
             **result
         }
-    
+
     except Exception as e:
         logger.error(f"Error processing file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

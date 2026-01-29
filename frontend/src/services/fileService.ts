@@ -28,6 +28,13 @@ export interface ProcessFileData {
   sheet_name?: string
 }
 
+export interface UploadResponse {
+  file_id: number
+  filename: string
+  structure: FileStructure
+  message: string
+}
+
 export const fileService = {
   // Upload file
   uploadFile: async (projectId: number, file: File, onProgress?: (progress: number) => void) => {
@@ -35,7 +42,7 @@ export const fileService = {
     formData.append('file', file)
     formData.append('project_id', projectId.toString())
 
-    const response = await apiClient.post<BOQFile>(
+    const response = await apiClient.post<UploadResponse>(
       `/files/upload`,
       formData,
       {

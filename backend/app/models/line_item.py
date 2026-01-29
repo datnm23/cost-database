@@ -6,8 +6,8 @@ from app.core.database import Base
 
 
 class ClassificationMethod(str, enum.Enum):
-    AUTO = "auto"
-    MANUAL = "manual"
+    auto = "auto"
+    manual = "manual"
 
 
 class LineItem(Base):
@@ -24,7 +24,7 @@ class LineItem(Base):
     amount = Column(DECIMAL(18, 2))
     sec_code = Column(String(20), ForeignKey("sec_codes.sec_code"), index=True)
     confidence_score = Column(DECIMAL(5, 2))
-    classification_method = Column(Enum(ClassificationMethod), default=ClassificationMethod.AUTO)
+    classification_method = Column(Enum(ClassificationMethod), default=ClassificationMethod.auto)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
