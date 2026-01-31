@@ -45,20 +45,45 @@ class ExcelProcessor:
             logger.error(f"Error reading Excel file: {e}")
             raise
     
-    def detect_header_row(self, df: pd.DataFrame, max_rows_to_check: int = 10) -> int:
+    def detect_header_row(self, df: pd.DataFrame, max_rows_to_check: int = 20) -> int:
         """
-        Detect the header row by finding the row with maximum non-null values
+        Detect the header row by finding the row with maximum text headers
+        (not just numbers)
         """
         header_row = 0
-        max_non_null = 0
-        
+        max_score = 0
+
         for i in range(min(max_rows_to_check, len(df))):
-            non_null_count = df.iloc[i].notna().sum()
-            if non_null_count > max_non_null:
-                max_non_null = non_null_count
+            row = df.iloc[i]
+
+            # Count non-null cells
+            non_null_count = row.notna().sum()
+
+            # Count text cells (not pure numbers)
+            text_count = 0
+            for val in row:
+                if pd.notna(val):
+                    val_str = str(val).strip()
+                    # Check if it contains letters (not just numbers)
+                    if any(c.isalpha() for c in val_str):
+                        text_count += 1
+
+            # Score = text cells * 2 + non-null cells
+            # This prioritizes rows with text headers over rows with just numbers
+            score = text_count * 2 + non_null_count
+
+            # Also check for common header keywords
+            row_str = ' '.join([str(v).lower() for v in row if pd.notna(v)])
+            if any(keyword in row_str for keyword in ['description', 'mô tả', 'quantity', 'số lượng', 'unit', 'đơn vị', 'amount', 'thành tiền']):
+                score += 50  # Bonus for having BOQ header keywords
+
+            if score > max_score:
+                max_score = score
                 header_row = i
-        
-        logger.info(f"Detected header row at index: {header_row}")
+
+            logger.debug(f"Row {i}: non_null={non_null_count}, text={text_count}, score={score}")
+
+        logger.info(f"Detected header row at index: {header_row} (score: {max_score})")
         return header_row
     
     def detect_columns(self, columns: List[str]) -> Dict[str, str]:
@@ -67,24 +92,27 @@ class ExcelProcessor:
         Returns mapping: {original_column: standard_column}
         """
         mapping = {}
-        
+
         # Keywords for each standard column
         keywords_map = {
             'description': ['description', 'mô tả', 'hạng mục', 'item', 'work item', 'nội dung'],
             'unit': ['unit', 'đơn vị', 'đvt', 'uom'],
-            'quantity': ['quantity', 'số lượng', 'qty', 'khối lượng', 'volume'],
+            'quantity': ['quantity', 'số lượng', 'qty', 'k.luong', 'k.lượng', 'khối lượng', 'volume'],
             'unit_price': ['unit price', 'đơn giá', 'rate', 'price', 'giá'],
             'amount': ['amount', 'thành tiền', 'total', 'value', 'tổng']
         }
-        
+
         for col in columns:
-            col_lower = str(col).lower().strip()
-            
+            # Clean column name - remove line breaks and extra spaces
+            col_clean = str(col).replace('\n', ' ').replace('\r', ' ').strip()
+            col_lower = col_clean.lower()
+
             for standard_name, keywords in keywords_map.items():
                 if any(keyword in col_lower for keyword in keywords):
                     mapping[col] = standard_name
+                    logger.debug(f"Mapped '{col_clean}' -> '{standard_name}'")
                     break
-        
+
         logger.info(f"Detected column mapping: {mapping}")
         return mapping
     
@@ -167,53 +195,102 @@ class ExcelProcessor:
         column_mapping: Dict[str, str]
     ) -> pd.DataFrame:
         """
-        Clean and standardize DataFrame data
+        Clean and standardize DataFrame data according to FR-DC requirements
         """
         # Rename columns according to mapping
         df = df.rename(columns=column_mapping)
-        
-        # Remove rows without description
+
+        initial_count = len(df)
+
+        # FR-DC-01: Loại bỏ rows trống (completely empty rows)
+        df = df.dropna(how='all')
+        empty_rows_removed = initial_count - len(df)
+        logger.info(f"FR-DC-01: Removed {empty_rows_removed} completely empty rows")
+
+        # FR-DC-01: Remove rows without description (core requirement)
         if 'description' in df.columns:
+            before_desc_filter = len(df)
             df = df.dropna(subset=['description'])
             df = df[df['description'].astype(str).str.strip() != '']
-        
-        # Clean description
+            df = df[df['description'].astype(str).str.lower() != 'nan']
+            desc_rows_removed = before_desc_filter - len(df)
+            logger.info(f"FR-DC-01: Removed {desc_rows_removed} rows without description")
+
+        # FR-DC-04: Trim whitespace from all text fields
         if 'description' in df.columns:
             df['description'] = df['description'].astype(str).str.strip()
-        
-        # Standardize units
+
+        # FR-DC-06: Unicode normalization for Vietnamese text
+        if 'description' in df.columns:
+            df['description'] = df['description'].apply(self._normalize_vietnamese)
+
+        # FR-DC-02: Standardize units
         if 'unit' in df.columns:
             df['unit'] = df['unit'].apply(self._standardize_unit)
-        
+
         # Convert numeric columns
         numeric_columns = ['quantity', 'unit_price', 'amount']
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        
-        # Calculate amount if not present
+
+        # FR-DC-03: Flag invalid quantities (negative or zero) for review
+        df['needs_review'] = False
+        df['validation_issues'] = ''
+
+        if 'quantity' in df.columns:
+            # Mark negative quantities
+            negative_mask = df['quantity'] < 0
+            df.loc[negative_mask, 'needs_review'] = True
+            df.loc[negative_mask, 'validation_issues'] = 'Negative quantity'
+
+            # Mark zero quantities (might be section headers)
+            zero_mask = (df['quantity'] == 0) & (~negative_mask)
+            df.loc[zero_mask, 'needs_review'] = True
+            df.loc[zero_mask, 'validation_issues'] = df.loc[zero_mask, 'validation_issues'].apply(
+                lambda x: (x + '; ' if x else '') + 'Zero quantity'
+            )
+
+        # FR-DC-03: Flag invalid prices
+        if 'unit_price' in df.columns:
+            negative_price_mask = df['unit_price'] < 0
+            df.loc[negative_price_mask, 'needs_review'] = True
+            df.loc[negative_price_mask, 'validation_issues'] = df.loc[negative_price_mask, 'validation_issues'].apply(
+                lambda x: (x + '; ' if x else '') + 'Negative price'
+            )
+
+        # FR-DC-05: Calculate amount if not present
         if 'amount' not in df.columns and 'quantity' in df.columns and 'unit_price' in df.columns:
             df['amount'] = df['quantity'] * df['unit_price']
-        
-        # Filter out zero quantity items
-        if 'quantity' in df.columns:
-            df = df[df['quantity'] > 0]
-        
+
+        # Recalculate amount to ensure consistency
+        if 'quantity' in df.columns and 'unit_price' in df.columns:
+            calculated_amount = df['quantity'] * df['unit_price']
+            if 'amount' in df.columns:
+                # Flag if calculated amount differs from provided amount
+                amount_diff_mask = (df['amount'] != calculated_amount) & (df['amount'] != 0)
+                df.loc[amount_diff_mask, 'needs_review'] = True
+                df.loc[amount_diff_mask, 'validation_issues'] = df.loc[amount_diff_mask, 'validation_issues'].apply(
+                    lambda x: (x + '; ' if x else '') + 'Amount mismatch'
+                )
+            df['amount'] = calculated_amount
+
         # Reset index
         df = df.reset_index(drop=True)
-        
-        logger.info(f"Cleaned data: {len(df)} rows remaining")
+
+        review_count = df['needs_review'].sum()
+        logger.info(f"Cleaned data: {len(df)} rows remaining, {review_count} flagged for review")
         return df
     
     def _standardize_unit(self, unit: any) -> str:
         """
-        Standardize unit values to common formats
+        Standardize unit values to common formats (FR-DC-02)
         """
         if pd.isna(unit):
             return 'pcs'
-        
+
         unit_str = str(unit).lower().strip()
-        
+
         # Unit mapping dictionary
         unit_map = {
             'm': ['m', 'met', 'meter', 'mét'],
@@ -224,17 +301,38 @@ class ExcelProcessor:
             'pcs': ['pcs', 'pc', 'cái', 'chiếc', 'ea', 'each', 'piece'],
             'set': ['set', 'bộ'],
             'lot': ['lot', 'lô'],
+            'ls': ['ls', 'lump sum', 'trọn gói'],
             'ml': ['ml', 'liter', 'lít', 'l'],
             'day': ['day', 'ngày', 'd'],
             'hour': ['hour', 'giờ', 'hr', 'h'],
         }
-        
+
         for standard, variations in unit_map.items():
             if unit_str in variations:
                 return standard
-        
+
         # If no match found, return original (cleaned)
         return unit_str[:10]  # Limit length
+
+    def _normalize_vietnamese(self, text: any) -> str:
+        """
+        Normalize Vietnamese text - Unicode normalization (FR-DC-06)
+        """
+        import unicodedata
+
+        if pd.isna(text):
+            return ''
+
+        text_str = str(text).strip()
+
+        # Unicode normalization form C (canonical composition)
+        # Ensures Vietnamese diacritics are in consistent format
+        normalized = unicodedata.normalize('NFC', text_str)
+
+        # Remove extra whitespaces
+        normalized = ' '.join(normalized.split())
+
+        return normalized
     
     def extract_line_items(
         self,
@@ -246,7 +344,7 @@ class ExcelProcessor:
         Extract line items from cleaned DataFrame
         """
         line_items = []
-        
+
         for idx, row in df.iterrows():
             item = {
                 'file_id': file_id,
@@ -257,9 +355,11 @@ class ExcelProcessor:
                 'quantity': float(row.get('quantity', 0)),
                 'unit_price': float(row.get('unit_price', 0)),
                 'amount': float(row.get('amount', 0)),
+                'needs_review': bool(row.get('needs_review', False)),
+                'validation_issues': str(row.get('validation_issues', '')),
             }
             line_items.append(item)
-        
+
         logger.info(f"Extracted {len(line_items)} line items")
         return line_items
     

@@ -8,6 +8,7 @@ from app.models.boq_file import BOQFile, FileStatus
 from app.models.line_item import LineItem, ClassificationMethod
 from app.utils.excel_processor import ExcelProcessor
 from app.services.classifier_service import get_classifier
+from app.services.rule_based_classifier import get_rule_based_classifier
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -70,14 +71,22 @@ class FileService:
         
         # Read and process Excel
         df = self.excel_processor.read_excel(file_path)
-        
-        # Detect header if not provided
+
+        # Detect header row
+        header_row = self.excel_processor.detect_header_row(df)
+        df.columns = df.iloc[header_row]
+        df = df.iloc[header_row + 1:].reset_index(drop=True)
+
+        # Detect or use provided column mapping
         if not column_mapping:
-            header_row = self.excel_processor.detect_header_row(df)
-            df.columns = df.iloc[header_row]
-            df = df.iloc[header_row + 1:].reset_index(drop=True)
             column_mapping = self.excel_processor.detect_columns(df.columns.tolist())
-        
+        else:
+            # IMPORTANT: Frontend sends {standard_name: excel_column}
+            # But clean_data needs {excel_column: standard_name}
+            # So we need to invert the mapping
+            column_mapping = {v: k for k, v in column_mapping.items()}
+            logger.info(f"Inverted column mapping: {column_mapping}")
+
         # Clean data
         df_clean = self.excel_processor.clean_data(df, column_mapping)
         
@@ -88,48 +97,94 @@ class FileService:
             project_id=boq_file.project_id
         )
 
-        # Get classifier (optional - skip if not available)
+        # FR-CL-06: Configurable threshold (default 80%)
+        confidence_threshold = settings.CLASSIFICATION_THRESHOLD * 100  # Convert 0.8 to 80
+
+        # FR-CL-01 & FR-CL-04: Try ML classifier first, fallback to rule-based
+        classifier = None
+        classifier_type = None
+
         try:
             classifier = get_classifier(self.db)
-            use_classifier = True
+            classifier_type = 'ML'
+            logger.info("Using ML-based classifier")
         except Exception as e:
-            logger.warning(f"Classifier not available, skipping classification: {e}")
-            classifier = None
-            use_classifier = False
+            logger.warning(f"ML classifier not available: {e}")
+            try:
+                # FR-CL-04: Rule-based fallback
+                classifier = get_rule_based_classifier(self.db)
+                classifier_type = 'RULE'
+                logger.info("Using rule-based classifier as fallback")
+            except Exception as e2:
+                logger.error(f"Rule-based classifier also failed: {e2}")
+                classifier = None
+                classifier_type = None
 
         # Process and save each line item
         processed_count = 0
         total_amount = 0
 
         for item_data in line_items_data:
-            # Classify description if classifier is available
-            if use_classifier and classifier:
+            # FR-CL-01: Auto classification
+            if classifier and item_data.get('description'):
                 try:
+                    # FR-CL-03: Get top 3 SEC codes
                     classification_results = classifier.classify(
                         item_data['description'],
-                        top_k=1
+                        top_k=3
                     )
 
                     if classification_results:
+                        # Use the best match (top 1)
                         sec_code, confidence = classification_results[0]
                         item_data['sec_code'] = sec_code
                         item_data['confidence_score'] = confidence
-                        item_data['classification_method'] = (
-                            ClassificationMethod.AUTO if confidence >= 80 else ClassificationMethod.AUTO
+                        item_data['classification_method'] = ClassificationMethod.auto
+
+                        # FR-DC-03: Flag for review if confidence is low
+                        if confidence < confidence_threshold:
+                            item_data['needs_review'] = True
+                            current_issues = item_data.get('validation_issues', '')
+                            item_data['validation_issues'] = (
+                                (current_issues + '; ' if current_issues else '') +
+                                f'Low confidence ({confidence:.1f}%)'
+                            )
+
+                        # Store top 3 suggestions as metadata (for future use)
+                        # Could be stored in a separate table or JSON field
+                        logger.debug(
+                            f"Classified '{item_data['description'][:50]}...' as {sec_code} "
+                            f"({confidence:.1f}%) using {classifier_type}"
                         )
                     else:
                         item_data['sec_code'] = None
                         item_data['confidence_score'] = 0
-                        item_data['classification_method'] = ClassificationMethod.AUTO
+                        item_data['classification_method'] = ClassificationMethod.auto
+                        item_data['needs_review'] = True
+                        current_issues = item_data.get('validation_issues', '')
+                        item_data['validation_issues'] = (
+                            (current_issues + '; ' if current_issues else '') +
+                            'No classification match'
+                        )
+
                 except Exception as e:
-                    logger.warning(f"Classification failed for item, skipping: {e}")
+                    logger.warning(f"Classification failed for item: {e}")
                     item_data['sec_code'] = None
                     item_data['confidence_score'] = 0
-                    item_data['classification_method'] = ClassificationMethod.AUTO
+                    item_data['classification_method'] = ClassificationMethod.auto
+                    item_data['needs_review'] = True
+                    current_issues = item_data.get('validation_issues', '')
+                    item_data['validation_issues'] = (
+                        (current_issues + '; ' if current_issues else '') +
+                        'Classification error'
+                    )
             else:
+                # No classifier available or empty description
                 item_data['sec_code'] = None
                 item_data['confidence_score'] = 0
-                item_data['classification_method'] = ClassificationMethod.AUTO
+                item_data['classification_method'] = ClassificationMethod.auto
+                if not item_data.get('description'):
+                    item_data['needs_review'] = True
 
             # Create line item
             line_item = LineItem(**item_data)
@@ -137,15 +192,15 @@ class FileService:
 
             processed_count += 1
             total_amount += item_data['amount']
-        
+
         # Update file record
         boq_file.total_rows = processed_count
         boq_file.total_amount = total_amount
-        boq_file.status = FileStatus.DRAFT
-        
+        boq_file.status = FileStatus.draft  # lowercase
+
         # Commit all changes
         self.db.commit()
-        
+
         logger.info(f"File processing complete: {processed_count} items, total amount: {total_amount}")
         
         return {

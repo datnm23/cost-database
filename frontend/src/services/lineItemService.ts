@@ -1,33 +1,29 @@
 import apiClient from './api'
 
 export interface LineItem {
-  id: number
+  line_item_id: number
   file_id: number
-  item_number?: string
+  project_id: number
+  row_number?: number
   description: string
   quantity?: number
   unit?: string
   unit_price?: number
-  total_price?: number
+  amount?: number
   sec_code?: string
-  sec_code_id?: number
-  classification_confidence?: number
+  confidence_score?: number
   classification_method?: string
-  is_verified: boolean
-  notes?: string
-  metadata?: any
-  created_at: string
-  updated_at: string
+  needs_review?: boolean
+  validation_issues?: string[]
 }
 
 export interface SECCode {
-  id: number
-  code: string
-  description: string
+  sec_code: string  // Changed from 'code' to 'sec_code'
+  sec_name_vi: string  // Changed from 'description'
+  sec_name_en?: string
   level: number
-  parent_id?: number
+  parent_code?: string  // Changed from 'parent_id'
   is_active: boolean
-  metadata?: any
 }
 
 export interface ClassificationResult {
@@ -39,8 +35,8 @@ export interface ClassificationResult {
 
 export interface BulkUpdateData {
   line_item_ids: number[]
-  sec_code_id?: number
-  is_verified?: boolean
+  sec_code?: string
+  needs_review?: boolean
   notes?: string
 }
 
@@ -50,7 +46,7 @@ export const lineItemService = {
     file_id?: number
     project_id?: number
     sec_code?: string
-    is_verified?: boolean
+    needs_review?: boolean
     skip?: number
     limit?: number
   }) => {
@@ -60,9 +56,10 @@ export const lineItemService = {
         queryParams.append(key, value.toString())
       }
     })
-    
-    const response = await apiClient.get<LineItem[]>(`/line-items?${queryParams}`)
-    return response.data
+
+    const response = await apiClient.get<{ items: LineItem[], total: number }>(`/line-items?${queryParams}`)
+    // Return items array, not the whole response
+    return response.data.items || []
   },
 
   // Get single line item
@@ -109,9 +106,10 @@ export const secCodeService = {
     const params = new URLSearchParams()
     if (level !== undefined) params.append('level', level.toString())
     if (parentId !== undefined) params.append('parent_id', parentId.toString())
-    
-    const response = await apiClient.get<SECCode[]>(`/sec-codes?${params}`)
-    return response.data
+
+    const response = await apiClient.get<{ sec_codes: SECCode[], total: number }>(`/sec-codes?${params}`)
+    // Return sec_codes array, not the whole response
+    return response.data.sec_codes || []
   },
 
   // Get SEC code hierarchy

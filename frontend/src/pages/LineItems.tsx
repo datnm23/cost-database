@@ -52,7 +52,7 @@ export default function LineItems() {
     file_id: searchParams.get('file_id') ? parseInt(searchParams.get('file_id')!) : undefined,
     project_id: searchParams.get('project_id') ? parseInt(searchParams.get('project_id')!) : undefined,
     sec_code: undefined as string | undefined,
-    is_verified: undefined as boolean | undefined,
+    needs_review: undefined as boolean | undefined,
     search: '',
   })
 
@@ -63,7 +63,7 @@ export default function LineItems() {
       file_id: filters.file_id,
       project_id: filters.project_id,
       sec_code: filters.sec_code,
-      is_verified: filters.is_verified,
+      needs_review: filters.needs_review,
       limit: 1000,
     }),
   })
@@ -136,7 +136,7 @@ export default function LineItems() {
     try {
       const values = await form.validateFields()
       if (editingItem) {
-        updateMutation.mutate({ id: editingItem.id, data: values })
+        updateMutation.mutate({ id: editingItem.line_item_id, data: values })
       }
     } catch (error) {
       console.error('Validation failed:', error)
@@ -146,14 +146,14 @@ export default function LineItems() {
   const handleBulkVerify = () => {
     bulkUpdateMutation.mutate({
       line_item_ids: selectedRowKeys,
-      is_verified: true,
+      needs_review: false,
     })
   }
 
-  const handleBulkUpdateSEC = (secCodeId: number) => {
+  const handleBulkUpdateSEC = (secCode: string) => {
     bulkUpdateMutation.mutate({
       line_item_ids: selectedRowKeys,
-      sec_code_id: secCodeId,
+      sec_code: secCode,
     })
   }
 
@@ -178,9 +178,9 @@ export default function LineItems() {
 
   const columns = [
     {
-      title: 'Item No.',
-      dataIndex: 'item_number',
-      key: 'item_number',
+      title: 'Row No.',
+      dataIndex: 'row_number',
+      key: 'row_number',
       width: 100,
     },
     {
@@ -211,9 +211,9 @@ export default function LineItems() {
       render: (val: number) => val ? `$${val.toFixed(2)}` : '-',
     },
     {
-      title: 'Total Price',
-      dataIndex: 'total_price',
-      key: 'total_price',
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
       width: 120,
       render: (val: number) => val ? `$${val.toFixed(2)}` : '-',
     },
@@ -225,9 +225,9 @@ export default function LineItems() {
       render: (code: string, record: LineItem) => (
         <Space direction="vertical" size="small">
           <Tag color={code ? 'blue' : 'default'}>{code || 'Not Classified'}</Tag>
-          {record.classification_confidence && (
+          {record.confidence_score && (
             <span style={{ fontSize: 11, color: '#999' }}>
-              {(record.classification_confidence * 100).toFixed(0)}% confidence
+              {record.confidence_score.toFixed(0)}% confidence
             </span>
           )}
         </Space>
@@ -235,12 +235,12 @@ export default function LineItems() {
     },
     {
       title: 'Status',
-      dataIndex: 'is_verified',
-      key: 'is_verified',
+      dataIndex: 'needs_review',
+      key: 'needs_review',
       width: 100,
-      render: (verified: boolean) => (
-        <Tag color={verified ? 'green' : 'orange'} icon={verified ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
-          {verified ? 'Verified' : 'Pending'}
+      render: (needsReview: boolean) => (
+        <Tag color={needsReview ? 'orange' : 'green'} icon={needsReview ? <CloseCircleOutlined /> : <CheckCircleOutlined />}>
+          {needsReview ? 'Needs Review' : 'Verified'}
         </Tag>
       ),
     },
@@ -280,20 +280,20 @@ export default function LineItems() {
                 type="link"
                 size="small"
                 icon={<SyncOutlined />}
-                onClick={() => handleClassify(record.id)}
+                onClick={() => handleClassify(record.line_item_id)}
                 loading={classifyMutation.isPending}
               />
             </Tooltip>
           )}
-          {!record.is_verified && (
+          {record.needs_review && (
             <Tooltip title="Mark as Verified">
               <Button
                 type="link"
                 size="small"
                 icon={<CheckOutlined />}
                 onClick={() => updateMutation.mutate({
-                  id: record.id,
-                  data: { is_verified: true },
+                  id: record.line_item_id,
+                  data: { needs_review: false },
                 })}
               />
             </Tooltip>
@@ -301,7 +301,7 @@ export default function LineItems() {
           <Popconfirm
             title="Delete Line Item"
             description="Are you sure you want to delete this item?"
-            onConfirm={() => handleDelete(record.id)}
+            onConfirm={() => handleDelete(record.line_item_id)}
             okText="Yes"
             cancelText="No"
           >
@@ -354,8 +354,8 @@ export default function LineItems() {
               allowClear
             >
               {secCodes?.map((sec: SECCode) => (
-                <Option key={sec.id} value={sec.id}>
-                  {sec.code} - {sec.description}
+                <Option key={sec.sec_code} value={sec.sec_code}>
+                  {sec.sec_code} - {sec.sec_name_vi}
                 </Option>
               ))}
             </Select>
@@ -368,7 +368,7 @@ export default function LineItems() {
         <Table
           columns={columns}
           dataSource={filteredLineItems}
-          rowKey="id"
+          rowKey="line_item_id"
           loading={isLoading}
           rowSelection={rowSelection}
           pagination={{
@@ -415,16 +415,16 @@ export default function LineItems() {
           <Form.Item name="sec_code_id" label="SEC Code">
             <Select allowClear placeholder="Select SEC code">
               {secCodes?.map((sec: SECCode) => (
-                <Option key={sec.id} value={sec.id}>
-                  {sec.code} - {sec.description}
+                <Option key={sec.sec_code} value={sec.sec_code}>
+                  {sec.sec_code} - {sec.sec_name_vi}
                 </Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="is_verified" label="Verified" valuePropName="checked">
+          <Form.Item name="needs_review" label="Needs Review" valuePropName="checked">
             <Select>
-              <Option value={true}>Verified</Option>
-              <Option value={false}>Pending</Option>
+              <Option value={true}>Needs Review</Option>
+              <Option value={false}>Verified</Option>
             </Select>
           </Form.Item>
           <Form.Item name="notes" label="Notes">
@@ -442,15 +442,15 @@ export default function LineItems() {
         width={350}
       >
         <Form layout="vertical">
-          <Form.Item label="Verification Status">
+          <Form.Item label="Review Status">
             <Select
-              value={filters.is_verified}
-              onChange={(val) => setFilters({ ...filters, is_verified: val })}
+              value={filters.needs_review}
+              onChange={(val) => setFilters({ ...filters, needs_review: val })}
               allowClear
               placeholder="All statuses"
             >
-              <Option value={true}>Verified</Option>
-              <Option value={false}>Pending</Option>
+              <Option key="needs_review" value={true}>Needs Review</Option>
+              <Option key="verified" value={false}>Verified</Option>
             </Select>
           </Form.Item>
           <Form.Item label="SEC Code">
@@ -462,8 +462,8 @@ export default function LineItems() {
               showSearch
             >
               {secCodes?.map((sec: SECCode) => (
-                <Option key={sec.code} value={sec.code}>
-                  {sec.code} - {sec.description}
+                <Option key={sec.sec_code} value={sec.sec_code}>
+                  {sec.sec_code} - {sec.sec_name_vi}
                 </Option>
               ))}
             </Select>
@@ -483,7 +483,7 @@ export default function LineItems() {
                 file_id: undefined,
                 project_id: undefined,
                 sec_code: undefined,
-                is_verified: undefined,
+                needs_review: undefined,
                 search: '',
               })
             }}
