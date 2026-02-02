@@ -6,6 +6,9 @@ export interface LineItem {
   project_id: number
   row_number?: number
   description: string
+  normalized_description?: string
+  normalization_confidence?: number
+  work_category?: string
   quantity?: number
   unit?: string
   unit_price?: number

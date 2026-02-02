@@ -9,6 +9,7 @@ from app.models.line_item import LineItem, ClassificationMethod
 from app.utils.excel_processor import ExcelProcessor
 from app.services.classifier_service import get_classifier
 from app.services.rule_based_classifier import get_rule_based_classifier
+from app.services.description_normalizer import DescriptionNormalizer
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class FileService:
     def __init__(self, db: Session):
         self.db = db
         self.excel_processor = ExcelProcessor()
+        self.normalizer = DescriptionNormalizer()
         self.upload_dir = Path(settings.UPLOAD_DIR)
         self.upload_dir.mkdir(parents=True, exist_ok=True)
     
@@ -125,12 +127,39 @@ class FileService:
         total_amount = 0
 
         for item_data in line_items_data:
-            # FR-CL-01: Auto classification
-            if classifier and item_data.get('description'):
+            # Normalize description first
+            original_description = item_data.get('description', '')
+            if original_description:
+                try:
+                    normalized = self.normalizer.normalize(original_description)
+                    work_category = self.normalizer.identify_work_category(original_description)
+                    item_data['normalized_description'] = normalized
+                    item_data['work_category'] = work_category
+                    # Calculate normalization confidence based on parsing success
+                    components = self.normalizer.parse_description(original_description)
+                    confidence = 100.0
+                    if not components.get('verb'):
+                        confidence -= 30
+                    if not components.get('material'):
+                        confidence -= 20
+                    if not components.get('position'):
+                        confidence -= 15
+                    if not components.get('grade') and not components.get('specs'):
+                        confidence -= 15
+                    item_data['normalization_confidence'] = max(0, confidence)
+                except Exception as e:
+                    logger.warning(f"Normalization failed for description: {e}")
+                    item_data['normalized_description'] = original_description
+                    item_data['normalization_confidence'] = 0
+                    item_data['work_category'] = None
+
+            # FR-CL-01: Auto classification - use normalized description for better accuracy
+            classification_text = item_data.get('normalized_description') or item_data.get('description')
+            if classifier and classification_text:
                 try:
                     # FR-CL-03: Get top 3 SEC codes
                     classification_results = classifier.classify(
-                        item_data['description'],
+                        classification_text,
                         top_k=3
                     )
 

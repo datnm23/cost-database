@@ -129,6 +129,7 @@ def migrate_master_work_items(dry_run: bool = True):
 def migrate_line_items(dry_run: bool = True, limit: int = None):
     """
     Chuẩn hóa descriptions trong line_items table
+    Populates normalized_description field (không overwrite description)
 
     Args:
         dry_run: Preview mode
@@ -140,10 +141,11 @@ def migrate_line_items(dry_run: bool = True, limit: int = None):
     normalizer = DescriptionNormalizer()
 
     try:
-        # Get line items
+        # Get line items that have not been normalized yet
         query = db.query(LineItem).filter(
             LineItem.description.isnot(None),
-            LineItem.description != ''
+            LineItem.description != '',
+            LineItem.normalized_description.is_(None)  # Only process items without normalized_description
         ).order_by(LineItem.line_item_id)
 
         if limit:
@@ -158,34 +160,70 @@ def migrate_line_items(dry_run: bool = True, limit: int = None):
             'total': len(items),
             'changed': 0,
             'unchanged': 0,
-            'errors': 0
+            'errors': 0,
+            'changes': []
         }
 
+        batch_size = 500
         for idx, item in enumerate(items, 1):
             try:
                 original = item.description
                 normalized = normalizer.normalize(original)
+                work_category = normalizer.identify_work_category(original)
+
+                # Calculate confidence
+                components = normalizer.parse_description(original)
+                confidence = 100.0
+                if not components.get('verb'):
+                    confidence -= 30
+                if not components.get('material'):
+                    confidence -= 20
+                if not components.get('position'):
+                    confidence -= 15
+                if not components.get('grade') and not components.get('specs'):
+                    confidence -= 15
+                confidence = max(0, confidence)
 
                 if original != normalized:
                     stats['changed'] += 1
 
+                    # Store change for preview
+                    if len(stats['changes']) < 20:  # Limit preview to 20 items
+                        stats['changes'].append({
+                            'id': item.line_item_id,
+                            'original': original,
+                            'normalized': normalized,
+                            'work_category': work_category,
+                            'confidence': confidence,
+                            'reduction': len(original) - len(normalized)
+                        })
+
                     # Apply change if not dry run
                     if not dry_run:
-                        item.description = normalized
+                        item.normalized_description = normalized
+                        item.work_category = work_category
+                        item.normalization_confidence = confidence
 
                 else:
                     stats['unchanged'] += 1
+                    # Even if unchanged, populate the normalized fields
+                    if not dry_run:
+                        item.normalized_description = normalized
+                        item.work_category = work_category
+                        item.normalization_confidence = confidence
 
-                # Progress indicator
-                if idx % 500 == 0:
+                # Progress indicator and batch commit
+                if idx % batch_size == 0:
                     print(f"  Processed {idx}/{len(items)} items...")
+                    if not dry_run:
+                        db.commit()
 
             except Exception as e:
                 print(f"  ❌ Error processing item {item.line_item_id}: {e}")
                 stats['errors'] += 1
                 continue
 
-        # Commit changes if not dry run
+        # Commit remaining changes if not dry run
         if not dry_run:
             db.commit()
             print(f"\n✅ Changes committed to database")
@@ -195,9 +233,23 @@ def migrate_line_items(dry_run: bool = True, limit: int = None):
         # Print statistics
         print(f"\nStatistics:")
         print(f"  Total items:      {stats['total']}")
-        print(f"  Changed:          {stats['changed']} ({stats['changed']/stats['total']*100:.1f}%)")
-        print(f"  Unchanged:        {stats['unchanged']} ({stats['unchanged']/stats['total']*100:.1f}%)")
+        if stats['total'] > 0:
+            print(f"  Changed:          {stats['changed']} ({stats['changed']/stats['total']*100:.1f}%)")
+            print(f"  Unchanged:        {stats['unchanged']} ({stats['unchanged']/stats['total']*100:.1f}%)")
         print(f"  Errors:           {stats['errors']}")
+
+        # Print sample changes
+        if stats['changes']:
+            print(f"\n📋 Sample Changes (showing first {len(stats['changes'])}):")
+            print(f"\n{'ID':<8} | {'Work Category':<20} | {'Conf':<5} | {'Original':<35} | {'Normalized':<35}")
+            print("-" * 120)
+
+            for change in stats['changes']:
+                print(f"{change['id']:<8} | "
+                      f"{(change['work_category'] or 'N/A'):<20} | "
+                      f"{change['confidence']:<5.0f} | "
+                      f"{change['original'][:35]:<35} | "
+                      f"{change['normalized'][:35]:<35}")
 
         return stats
 

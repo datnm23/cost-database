@@ -30,6 +30,11 @@ class LineItem(Base):
     needs_review = Column(Boolean, default=False, index=True, nullable=False)
     validation_issues = Column(Text, nullable=True)
 
+    # Naming normalization fields
+    normalized_description = Column(Text, nullable=True)
+    normalization_confidence = Column(DECIMAL(5, 2), nullable=True)
+    work_category = Column(String(50), nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -25,6 +25,8 @@ import {
   FilterOutlined,
   CheckOutlined,
   SearchOutlined,
+  SwapOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -34,6 +36,7 @@ import {
   LineItem,
   SECCode,
 } from '@/services/lineItemService'
+import { namingService } from '@/services/namingService'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -48,6 +51,7 @@ export default function LineItems() {
   const [editingItem, setEditingItem] = useState<LineItem | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+  const [showNormalized, setShowNormalized] = useState(false)
   const [filters, setFilters] = useState({
     file_id: searchParams.get('file_id') ? parseInt(searchParams.get('file_id')!) : undefined,
     project_id: searchParams.get('project_id') ? parseInt(searchParams.get('project_id')!) : undefined,
@@ -126,6 +130,31 @@ export default function LineItems() {
     },
   })
 
+  // Normalize mutation
+  const normalizeMutation = useMutation({
+    mutationFn: namingService.normalizeLineItem,
+    onSuccess: () => {
+      message.success('Item normalized successfully')
+      queryClient.invalidateQueries({ queryKey: ['lineItems'] })
+    },
+    onError: () => {
+      message.error('Failed to normalize item')
+    },
+  })
+
+  // Bulk normalize mutation
+  const bulkNormalizeMutation = useMutation({
+    mutationFn: namingService.bulkNormalize,
+    onSuccess: (data) => {
+      message.success(`Normalized ${data.success} items successfully`)
+      queryClient.invalidateQueries({ queryKey: ['lineItems'] })
+      setSelectedRowKeys([])
+    },
+    onError: () => {
+      message.error('Failed to normalize items')
+    },
+  })
+
   const handleEdit = (item: LineItem) => {
     setEditingItem(item)
     form.setFieldsValue(item)
@@ -165,30 +194,72 @@ export default function LineItems() {
     deleteMutation.mutate(id)
   }
 
+  const handleNormalize = (id: number) => {
+    normalizeMutation.mutate(id)
+  }
+
+  const handleBulkNormalize = () => {
+    bulkNormalizeMutation.mutate(selectedRowKeys)
+  }
+
   // Filter line items by search
   const filteredLineItems = lineItems?.filter((item) => {
     if (!filters.search) return true
     const search = filters.search.toLowerCase()
     return (
       item.description?.toLowerCase().includes(search) ||
-      item.item_number?.toLowerCase().includes(search) ||
+      item.normalized_description?.toLowerCase().includes(search) ||
       item.sec_code?.toLowerCase().includes(search)
     )
   })
+
+  // Work category colors
+  const workCategoryColors: Record<string, string> = {
+    earthworks_piling: 'orange',
+    concrete_rebar: 'blue',
+    finishing: 'green',
+    steel_mep: 'purple',
+    general: 'default',
+  }
 
   const columns = [
     {
       title: 'Row No.',
       dataIndex: 'row_number',
       key: 'row_number',
-      width: 100,
+      width: 80,
     },
     {
-      title: 'Description',
-      dataIndex: 'description',
+      title: showNormalized ? 'Normalized Description' : 'Description',
+      dataIndex: showNormalized ? 'normalized_description' : 'description',
       key: 'description',
-      width: 300,
+      width: 350,
       ellipsis: true,
+      render: (_: string, record: LineItem) => {
+        const text = showNormalized
+          ? (record.normalized_description || record.description)
+          : record.description
+        return (
+          <Tooltip title={text}>
+            <span>{text}</span>
+          </Tooltip>
+        )
+      },
+    },
+    {
+      title: 'Category',
+      dataIndex: 'work_category',
+      key: 'work_category',
+      width: 120,
+      render: (category: string) => {
+        if (!category) return '-'
+        const displayName = category.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
+        return (
+          <Tag color={workCategoryColors[category] || 'default'}>
+            {displayName}
+          </Tag>
+        )
+      },
     },
     {
       title: 'Quantity',
@@ -262,7 +333,7 @@ export default function LineItems() {
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 220,
       fixed: 'right' as const,
       render: (_: any, record: LineItem) => (
         <Space size="small">
@@ -274,6 +345,17 @@ export default function LineItems() {
               onClick={() => handleEdit(record)}
             />
           </Tooltip>
+          {!record.normalized_description && (
+            <Tooltip title="Normalize">
+              <Button
+                type="link"
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleNormalize(record.line_item_id)}
+                loading={normalizeMutation.isPending}
+              />
+            </Tooltip>
+          )}
           {!record.sec_code && (
             <Tooltip title="Auto-Classify">
               <Button
@@ -324,6 +406,13 @@ export default function LineItems() {
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Line Items Review</h1>
         <Space>
+          <Button
+            icon={<SwapOutlined />}
+            onClick={() => setShowNormalized(!showNormalized)}
+            type={showNormalized ? 'primary' : 'default'}
+          >
+            {showNormalized ? 'Normalized' : 'Original'}
+          </Button>
           <Input
             placeholder="Search items..."
             prefix={<SearchOutlined />}
@@ -344,6 +433,14 @@ export default function LineItems() {
         <Card style={{ marginBottom: 16 }}>
           <Space>
             <span><strong>{selectedRowKeys.length}</strong> items selected</span>
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              onClick={handleBulkNormalize}
+              loading={bulkNormalizeMutation.isPending}
+            >
+              Normalize Selected
+            </Button>
             <Button type="primary" onClick={handleBulkVerify}>
               Mark as Verified
             </Button>

@@ -8,6 +8,7 @@ from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.line_item import LineItem, ClassificationMethod
 from app.services.classifier_service import get_classifier
+from app.services.description_normalizer import DescriptionNormalizer
 
 from pydantic import BaseModel
 
@@ -21,6 +22,10 @@ class BulkUpdateRequest(BaseModel):
     line_item_ids: List[int]
     sec_code: Optional[str] = None
     needs_review: Optional[bool] = None
+
+
+class BulkNormalizeRequest(BaseModel):
+    line_item_ids: List[int]
 
 
 router = APIRouter()
@@ -66,6 +71,9 @@ async def get_line_items(
                 "project_id": item.project_id,
                 "row_number": item.row_number,
                 "description": item.description,
+                "normalized_description": item.normalized_description if hasattr(item, 'normalized_description') else None,
+                "normalization_confidence": float(item.normalization_confidence) if hasattr(item, 'normalization_confidence') and item.normalization_confidence else None,
+                "work_category": item.work_category if hasattr(item, 'work_category') else None,
                 "unit": item.unit,
                 "quantity": float(item.quantity) if item.quantity else 0,
                 "unit_price": float(item.unit_price) if item.unit_price else 0,
@@ -103,6 +111,9 @@ async def get_line_item(
         "project_id": item.project_id,
         "row_number": item.row_number,
         "description": item.description,
+        "normalized_description": item.normalized_description if hasattr(item, 'normalized_description') else None,
+        "normalization_confidence": float(item.normalization_confidence) if hasattr(item, 'normalization_confidence') and item.normalization_confidence else None,
+        "work_category": item.work_category if hasattr(item, 'work_category') else None,
         "unit": item.unit,
         "quantity": float(item.quantity) if item.quantity else 0,
         "unit_price": float(item.unit_price) if item.unit_price else 0,
@@ -110,6 +121,8 @@ async def get_line_item(
         "sec_code": item.sec_code,
         "confidence_score": float(item.confidence_score) if item.confidence_score else 0,
         "classification_method": item.classification_method,
+        "needs_review": item.needs_review if hasattr(item, 'needs_review') else False,
+        "validation_issues": item.validation_issues if hasattr(item, 'validation_issues') else None,
     }
 
 
@@ -294,11 +307,140 @@ async def delete_line_item(
 ):
     """Delete a line item"""
     item = db.query(LineItem).filter(LineItem.line_item_id == line_item_id).first()
-    
+
     if not item:
         raise HTTPException(status_code=404, detail="Line item not found")
-    
+
     db.delete(item)
     db.commit()
-    
+
     return None
+
+
+@router.post("/{line_item_id}/normalize")
+async def normalize_line_item(
+    line_item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Normalize a single line item's description
+    """
+    item = db.query(LineItem).filter(LineItem.line_item_id == line_item_id).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Line item not found")
+
+    if not item.description:
+        raise HTTPException(status_code=400, detail="Line item has no description to normalize")
+
+    normalizer = DescriptionNormalizer()
+
+    try:
+        normalized = normalizer.normalize(item.description)
+        work_category = normalizer.identify_work_category(item.description)
+
+        # Calculate confidence
+        components = normalizer.parse_description(item.description)
+        confidence = 100.0
+        if not components.get('verb'):
+            confidence -= 30
+        if not components.get('material'):
+            confidence -= 20
+        if not components.get('position'):
+            confidence -= 15
+        if not components.get('grade') and not components.get('specs'):
+            confidence -= 15
+        confidence = max(0, confidence)
+
+        # Update the item
+        item.normalized_description = normalized
+        item.work_category = work_category
+        item.normalization_confidence = confidence
+
+        db.commit()
+        db.refresh(item)
+
+        return {
+            "message": "Line item normalized successfully",
+            "line_item_id": item.line_item_id,
+            "original_description": item.description,
+            "normalized_description": item.normalized_description,
+            "work_category": item.work_category,
+            "normalization_confidence": float(item.normalization_confidence) if item.normalization_confidence else 0
+        }
+    except Exception as e:
+        logger.error(f"Normalization failed for line item {line_item_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Normalization failed: {str(e)}")
+
+
+@router.post("/bulk-normalize")
+async def bulk_normalize(
+    request: BulkNormalizeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Bulk normalize multiple line items
+    """
+    normalizer = DescriptionNormalizer()
+
+    items = db.query(LineItem).filter(
+        LineItem.line_item_id.in_(request.line_item_ids)
+    ).all()
+
+    if not items:
+        raise HTTPException(status_code=404, detail="No line items found")
+
+    results = {
+        "total": len(items),
+        "success": 0,
+        "failed": 0,
+        "skipped": 0,
+        "items": []
+    }
+
+    for item in items:
+        if not item.description:
+            results["skipped"] += 1
+            continue
+
+        try:
+            normalized = normalizer.normalize(item.description)
+            work_category = normalizer.identify_work_category(item.description)
+
+            # Calculate confidence
+            components = normalizer.parse_description(item.description)
+            confidence = 100.0
+            if not components.get('verb'):
+                confidence -= 30
+            if not components.get('material'):
+                confidence -= 20
+            if not components.get('position'):
+                confidence -= 15
+            if not components.get('grade') and not components.get('specs'):
+                confidence -= 15
+            confidence = max(0, confidence)
+
+            item.normalized_description = normalized
+            item.work_category = work_category
+            item.normalization_confidence = confidence
+
+            results["success"] += 1
+            results["items"].append({
+                "line_item_id": item.line_item_id,
+                "normalized_description": normalized,
+                "work_category": work_category,
+                "confidence": confidence
+            })
+        except Exception as e:
+            results["failed"] += 1
+            logger.error(f"Normalization failed for line item {item.line_item_id}: {e}")
+
+    db.commit()
+
+    return {
+        "message": "Bulk normalization completed",
+        **results
+    }
+
