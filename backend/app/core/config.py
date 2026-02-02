@@ -60,7 +60,21 @@ class Settings(BaseSettings):
     MODEL_NAME: str = "keepitreal/vietnamese-sbert"
     MODEL_PATH: str = "./models"
     CLASSIFICATION_THRESHOLD: float = 0.8
-    
+
+    # AI/LLM Settings
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = "AIzaSyD4IabzNbbBe6akFwOkYboWn2nzmX934Zg"
+    AI_MODEL: str = "gemini-2.0-flash"  # or "gpt-4o-mini", "claude-3-haiku-20240307"
+    AI_PROVIDER: str = "gemini"  # "openai", "anthropic", or "gemini"
+    AI_NORMALIZATION_ENABLED: bool = True
+    AI_NORMALIZATION_BATCH_SIZE: int = 10
+
+    # Multi-Pass AI Analysis Settings
+    AI_CONTEXT_ANALYSIS_ENABLED: bool = True  # Pass 1: File context analysis
+    AI_CONTEXT_SAMPLE_SIZE: int = 50  # Number of rows to sample for context analysis
+    AI_DOMAIN_VALIDATION_ENABLED: bool = True  # Pass 4: Domain validation with AI correction
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "./logs/app.log"

@@ -48,13 +48,26 @@ class DescriptionNormalizer:
         CONCRETE_REBAR = "concrete_rebar"            # Bê tông & Cốt thép
         FINISHING = "finishing"                      # Hoàn thiện
         STEEL_MEP = "steel_mep"                      # Kết cấu thép & MEP
+        ROAD_INFRASTRUCTURE = "road_infrastructure"  # Hạ tầng đường
         GENERAL = "general"                          # Chung
 
     # Keywords để phân loại nhóm công tác
     CATEGORY_KEYWORDS = {
+        WorkCategory.ROAD_INFRASTRUCTURE: [
+            'biển báo', 'cọc tiêu', 'cọc km', 'lan can',
+            'vạch sơn', 'vạch kẻ', 'sơn vạch',
+            'bản quan trắc', 'quan trắc lún',
+            'cột đèn', 'đèn chiếu sáng',
+            'rải thảm', 'btn c', 'bê tông nhựa',
+            'lớp thấm bám', 'tưới nhựa', 'nhựa pha dầu',
+            'trồng cây', 'trồng cỏ', 'cây xanh', 'đất màu',
+            'tôn sóng', 'hộ lan',
+        ],
         WorkCategory.EARTHWORKS_PILING: [
             'đào', 'đắp', 'san', 'ép', 'khoan', 'đóng',
-            'cọc', 'đất', 'hố móng', 'móng', 'nền'
+            'cọc', 'đất', 'hố móng', 'móng', 'nền',
+            'đầm chặt', 'k95', 'k98', 'k90',  # Compaction
+            'cpđd', 'cấp phối', 'đá dăm',  # Aggregate
         ],
         WorkCategory.CONCRETE_REBAR: [
             'bê tông', 'betong', 'đổ', 'đúc',
@@ -83,6 +96,12 @@ class DescriptionNormalizer:
         'khoan': 'Khoan',
         'cung cấp': 'Cung cấp',
         'vận chuyển': 'Vận chuyển',
+        'lu lèn': 'Lu lèn',
+        'đầm': 'Đầm',
+        'rải': 'Rải',
+        'tưới': 'Tưới',
+        'tấm đan': 'Tấm đan',  # Slab/cover
+        'bó vỉa': 'Bó vỉa',  # Curb
 
         # Concrete & Structure
         'đổ': 'Đổ',
@@ -105,10 +124,28 @@ class DescriptionNormalizer:
         'sơn': 'Sơn',
         'ốp': 'Ốp',
         'lát': 'Lát',
+        'bó vỉa': 'Bó vỉa',
 
         # MEP
         'lắp đặt': 'Lắp đặt',
         'thi công': 'Thi công',
+
+        # Road Infrastructure - Paving
+        'rải thảm': 'Rải thảm',
+        'lu': 'Lu',
+        'đầm nén': 'Đầm nén',
+        'tưới nhựa': 'Tưới nhựa',
+        'sơn vạch': 'Sơn vạch',
+        'kẻ vạch': 'Kẻ vạch',
+
+        # Road Infrastructure - Equipment
+        'lắp biển báo': 'Lắp đặt biển báo',
+        'lắp đặt biển báo': 'Lắp đặt biển báo',
+        'lắp đặt cột': 'Lắp đặt cột',
+        'lắp đặt bản quan trắc': 'Lắp đặt bản quan trắc',
+        'lắp đặt lan can': 'Lắp đặt lan can',
+        'trồng cây': 'Trồng cây',
+        'trồng cỏ': 'Trồng cỏ',
     }
 
     # Vật liệu chuẩn
@@ -116,24 +153,84 @@ class DescriptionNormalizer:
         'bê tông': 'bê tông',
         'betong': 'bê tông',
         'bêtông': 'bê tông',
+        'btxm': 'BTXM',  # Bê tông xi măng
+        'btn': 'BTN',    # Bê tông nhựa (asphalt)
         'cốt thép': 'cốt thép',
         'thép': 'thép',
         'gạch': 'gạch',
         'đất': 'đất',
         'đá': 'đá',
+        'đá dăm': 'đá dăm',
+        'cấp phối đá dăm': 'CPĐD',
         'cọc': 'cọc',
         'ván khuôn': 'ván khuôn',
+        'vải địa kỹ thuật': 'vải ĐKT',
+        'nhựa đường': 'nhựa đường',
+        'nilon': 'nilon',
+        'ni lông': 'nilon',
+        'tấm đan': 'tấm đan',
+        # MEP materials
+        'ống': 'ống',
+        'ống ppr': 'ống PPR',
+        'ống pvc': 'ống PVC',
+        'ống hdpe': 'ống HDPE',
+        'ppr': 'PPR',
+        'pvc': 'PVC',
+        'hdpe': 'HDPE',
+        'cáp điện': 'cáp điện',
+        'dây điện': 'dây điện',
+        'ống gió': 'ống gió',
+
+        # Road Infrastructure Materials
+        'nhựa pha dầu': 'nhựa pha dầu',
+        'đất màu': 'đất màu',  # Topsoil
+        'bản quan trắc': 'bản quan trắc',
+        'biển báo': 'biển báo',
+        'vạch sơn': 'vạch sơn',
+        'cột đèn': 'cột đèn',
+        'lan can': 'lan can',
+        'tôn sóng': 'tôn sóng',
+        'cọc tiêu': 'cọc tiêu',
+        'cọc km': 'cọc km',
+        'cỏ': 'cỏ',
+        'cây xanh': 'cây xanh',
     }
 
     # Vị trí công tác (luôn viết thường)
     POSITION_KEYWORDS = [
-        'móng', 'lót móng', 'đế móng', 'bệ móng',
+        # Extended positions first (longer patterns)
+        'tường trong nhà', 'tường ngoài nhà', 'tường ngoài trời',
+        'tường ngoài', 'tường trong',
+        'trong nhà', 'ngoài nhà', 'ngoài trời',
+        # Foundation/structure positions
+        'lót móng', 'đế móng', 'bệ móng', 'hố móng',
+        'đài, giằng móng', 'đài móng', 'giằng móng',
+        'móng',
         'cột', 'dầm', 'sàn', 'tường', 'vách',
         'dầm sàn', 'dầm trần', 'dầm chính', 'dầm phụ',
         'trần', 'mái', 'nền', 'ngoài', 'trong',
-        'hố móng', 'hố thang máy', 'hố thu',
+        'hố thang máy', 'hố thu',
         'tầng hầm', 'tầng trệt', 'tầng mái',
+        # Road/infrastructure positions
+        'mặt đường', 'lề đường', 'vỉa hè', 'hè đường',
+        'nền đường', 'móng đường', 'đường',
+        'mương', 'rãnh', 'cống', 'hố ga',
+        'taluy', 'ta luy', 'bờ kè',
+        # MEP positions
+        'cấp nước', 'thoát nước', 'trục đứng', 'trục ngang',
+        'âm tường', 'âm sàn', 'nổi', 'ngầm',
     ]
+
+    # Equipment/method keywords
+    EQUIPMENT_KEYWORDS = {
+        'máy đào': 'máy đào',
+        'máy xúc': 'máy xúc',
+        'máy ép': 'máy ép',
+        'robot': 'robot',
+        'thủ công': 'thủ công',
+        'bằng máy': 'máy đào',
+        'bằng thủ công': 'thủ công',
+    }
 
     # Đơn vị đo chuẩn hóa
     UNIT_STANDARDIZATION = {
@@ -169,8 +266,26 @@ class DescriptionNormalizer:
         """
         text_lower = text.lower()
 
+        # Strong indicators for road infrastructure (highest priority)
+        road_indicators = [
+            'biển báo', 'cọc tiêu', 'cọc km', 'bản quan trắc', 'quan trắc',
+            'vạch sơn', 'sơn vạch', 'vạch kẻ', 'lan can', 'hộ lan', 'tôn sóng',
+            'rải thảm', 'lớp thấm bám', 'nhựa pha dầu', 'btn c',
+            'trồng cây', 'trồng cỏ', 'cây xanh', 'đất màu',
+        ]
+        for indicator in road_indicators:
+            if indicator in text_lower:
+                return self.WorkCategory.ROAD_INFRASTRUCTURE
+
+        # Strong indicators for specific categories (override scoring)
+        # "Bê tông" + position (not cọc/đất) -> concrete_rebar
+        if ('bê tông' in text_lower or 'betong' in text_lower or text_lower.startswith('vữa bê tông')):
+            if 'cọc' not in text_lower:
+                return self.WorkCategory.CONCRETE_REBAR
+
         # Count matches for each category
         scores = {category: 0 for category in [
+            self.WorkCategory.ROAD_INFRASTRUCTURE,
             self.WorkCategory.EARTHWORKS_PILING,
             self.WorkCategory.CONCRETE_REBAR,
             self.WorkCategory.FINISHING,
@@ -266,24 +381,51 @@ class DescriptionNormalizer:
             return f"CB{match.group(1)}"
 
         # Pattern 5: D + số (D10, D12, D16, D18 - đường kính thép)
-        match = re.search(r'\bd(\d{1,2})\b', text_lower)
-        if match:
-            return f"D{match.group(1)}"
+        # Skip if it looks like pipe diameter (D63 with PPR/PVC context)
+        if not re.search(r'\b(ppr|pvc|hdpe|ống)\b', text_lower):
+            match = re.search(r'\bd(\d{1,2})\b', text_lower)
+            if match:
+                return f"D{match.group(1)}"
 
         # Pattern 6: Thickness (dày XXXmm, chiều dày XXX)
         match = re.search(r'dày\s*(\d+)\s*mm', text_lower)
         if match:
             return f"dày {match.group(1)}mm"
 
-        # Pattern 7: PC + số (PC30, PC40 - xi măng)
+        # Pattern 7: PC + số (PC30, PC40 - xi măng) -> Domain knowledge mapping
+        # PC30 cement for foundation concrete typically means M100
+        # PC40 cement typically means M150-M200
         match = re.search(r'\bpc(\d{2})\b', text_lower)
         if match:
+            pc_grade = int(match.group(1))
+            # Map PC cement grades to concrete M grades (domain knowledge)
+            if 'lót móng' in text_lower or 'lót' in text_lower:
+                # Foundation lót móng with PC30 -> M100
+                pc_to_m = {30: 100, 40: 150}
+                if pc_grade in pc_to_m:
+                    return f"M{pc_to_m[pc_grade]}"
+            # Otherwise just return PC grade
             return f"PC{match.group(1)}"
 
         # Pattern 8: SS + số (SS400, SS490 - thép kết cấu)
         match = re.search(r'\bss(\d{3})\b', text_lower)
         if match:
             return f"SS{match.group(1)}"
+
+        # Pattern 9: PN + số (PN16, PN10 - áp suất ống)
+        match = re.search(r'\bpn\s*(\d+)\b', text_lower)
+        if match:
+            return f"PN{match.group(1)}"
+
+        # Pattern 10: K + số (K90, K95, K98 - độ đầm chặt/compaction)
+        match = re.search(r'\bk\s*(9[0-8])\b', text_lower)
+        if match:
+            return f"K{match.group(1)}"
+
+        # Pattern 11: BTN Cxx (BTN C12.5, BTN C19 - bê tông nhựa)
+        match = re.search(r'\bbtn\s*c(\d+(?:\.\d+)?)\b', text_lower)
+        if match:
+            return f"BTN C{match.group(1)}"
 
         return None
 
@@ -321,6 +463,14 @@ class DescriptionNormalizer:
         if match:
             dimensions.append(f"L={match.group(1)}m")
 
+        # Pattern 5b: Stone/curb dimensions (230x260x1000mm or 230x260x1000)
+        # Format: WxHxL in mm
+        match = re.search(r'(\d{2,3})x(\d{2,3})x(\d{3,4})\s*(?:mm)?', text_lower)
+        if match:
+            dim_str = f"{match.group(1)}x{match.group(2)}x{match.group(3)}"
+            if dim_str not in dimensions:
+                dimensions.append(dim_str)
+
         # Pattern 6: số x số (600x600, 400x200) - không phải H-section
         matches = re.findall(r'(?<!h)(\d+)\s*x\s*(\d+)(?!\s*x)', text_lower)
         for match in matches:
@@ -328,25 +478,23 @@ class DescriptionNormalizer:
             if dim_str not in dimensions:  # Avoid duplicates
                 dimensions.append(dim_str)
 
-        # Pattern 7: chiều dày/cao/rộng + số (ONLY if not already extracted)
+        # Pattern 7: Plastering thickness only (NOT wall thickness)
+        # Skip "chiều dày > X cm" which indicates wall thickness classification
         if not any('dày' in d for d in dimensions):
-            size_patterns = [
-                (r'dày\s+[><=]*\s*(\d+)\s*mm', 'dày', 'mm'),
-                (r'chiều\s+dày\s+[><=]*\s*(\d+)\s*cm', 'dày', 'cm'),
-                (r'chiều\s+dày\s+[><=]*\s*(\d+)\s*mm', 'dày', 'mm'),
-            ]
-
-            for pattern, name, unit in size_patterns:
-                match = re.search(pattern, text_lower)
-                if match:
-                    value = int(match.group(1))
-                    if unit == 'cm':
-                        value = value * 10  # Convert to mm
-                        unit = 'mm'
-                    dimensions.append(f"{name} {value}{unit}")
-                    break
+            has_wall_thickness = re.search(r'chiều\s+dày\s*[><]=?\s*\d+\s*cm', text_lower)
+            if not has_wall_thickness:
+                size_patterns = [
+                    (r'dày\s+(\d+)\s*mm', 'dày', 'mm'),
+                    (r'dày\s+(\d+)(?!\s*cm)', 'dày', 'mm'),
+                ]
+                for pattern, name, unit in size_patterns:
+                    match = re.search(pattern, text_lower)
+                    if match:
+                        dimensions.append(f"{name} {match.group(1)}{unit}")
+                        break
 
         return dimensions
+
 
     def identify_position(self, text: str) -> Optional[str]:
         """
@@ -383,37 +531,116 @@ class DescriptionNormalizer:
             'position': None,
             'grade': None,
             'specs': [],
-            'details': []
+            'details': [],
+            'equipment': None,
+            'material_detail': None,  # e.g., "gạch granite", "gạch đặc 5x10.5x22"
         }
 
         text_lower = text_cleaned.lower()
 
-        # Extract verb - tìm động từ dài nhất match (ưu tiên cụm động từ)
-        sorted_verbs = sorted(self.STANDARD_VERBS.items(), key=lambda x: len(x[0]), reverse=True)
-        for vn_verb, standard in sorted_verbs:
-            if text_lower.startswith(vn_verb):
-                components['verb'] = standard
-                # Remove verb khỏi text để parse tiếp
-                text_lower = text_lower[len(vn_verb):].strip()
-                break
+        # Special case: "Vữa bê tông" should be treated as "Bê tông"
+        if text_lower.startswith('vữa bê tông') or text_lower.startswith('vữa betong'):
+            components['verb'] = 'Bê tông'
+            text_lower = re.sub(r'^vữa\s+(bê tông|betong)', '', text_lower).strip()
+        else:
+            # Extract verb - tìm động từ dài nhất match (ưu tiên cụm động từ)
+            sorted_verbs = sorted(self.STANDARD_VERBS.items(), key=lambda x: len(x[0]), reverse=True)
+            for vn_verb, standard in sorted_verbs:
+                if text_lower.startswith(vn_verb):
+                    components['verb'] = standard
+                    # Remove verb khỏi text để parse tiếp
+                    text_lower = text_lower[len(vn_verb):].strip()
+                    break
 
         # Extract material - tìm vật liệu dài nhất match
+        # For earthworks, prioritize "cọc" over "đất" when both are present
         sorted_materials = sorted(self.STANDARD_MATERIALS.items(), key=lambda x: len(x[0]), reverse=True)
-        for vn_material, standard in sorted_materials:
-            if vn_material in text_lower:
-                components['material'] = standard
-                break
+
+        # Special handling: check for "cọc" first in earthworks context
+        if 'cọc' in text_lower:
+            components['material'] = 'cọc'
+        else:
+            for vn_material, standard in sorted_materials:
+                if vn_material in text_lower:
+                    # Skip "đất" if it's part of "đất cấp X" (soil classification, not material)
+                    if vn_material == 'đất' and re.search(r'đất\s+cấp\s+\d+', text_lower):
+                        # Check if there's another primary material
+                        other_materials = [m for m, s in sorted_materials if m != 'đất' and m in text_lower]
+                        if other_materials:
+                            components['material'] = self.STANDARD_MATERIALS[other_materials[0]]
+                            break
+                    components['material'] = standard
+                    break
 
         # Extract position
         components['position'] = self.identify_position(text_cleaned)
 
+        # Extract equipment/method
+        for equip_key, equip_value in self.EQUIPMENT_KEYWORDS.items():
+            if equip_key in text_lower:
+                components['equipment'] = equip_value
+                break
+
         # Extract grade
         components['grade'] = self.extract_material_grade(text_cleaned)
+
+        # Extract rebar diameter with comparison (D<10, D<=10, D>18, etc.)
+        rebar_match = re.search(r'd\s*([<>=]+)\s*(\d+)', text_lower)
+        if rebar_match:
+            components['specs'].append(f"D{rebar_match.group(1)}{rebar_match.group(2)}")
 
         # Extract dimensions
         dimensions = self.extract_dimensions(text_cleaned)
         if dimensions:
             components['specs'].extend(dimensions)
+
+        # Extract brick/tile dimensions with decimal (e.g., 6.5x10.5x22, 6,5x10,5x22)
+        # Handle both dot and comma as decimal separator
+        text_for_brick = text_lower.replace(',', '.')
+        brick_match = re.search(r'(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*x\s*(\d+)', text_for_brick)
+        brick_dim = None
+        if brick_match:
+            brick_dim = f"{brick_match.group(1)}x{brick_match.group(2)}x{brick_match.group(3)}"
+
+        # Extract material detail for finishing (gạch granite, gạch đặc, etc.)
+        if components['material'] == 'gạch':
+            if 'granite' in text_lower:
+                components['material_detail'] = 'gạch granite'
+            elif 'ceramic' in text_lower:
+                components['material_detail'] = 'gạch ceramic'
+            elif brick_dim:
+                # Has brick dimensions - check if "đặc" or "ống"
+                # Domain knowledge: dimensions like 6.5x10.5x22 are typically solid bricks (gạch đặc)
+                # Dimensions like 8x8x19 or 10x10x20 are typically hollow bricks (gạch ống/block)
+                if 'đặc' in text_lower:
+                    components['material_detail'] = f"gạch đặc {brick_dim}"
+                elif 'ống' in text_lower or 'block' in text_lower:
+                    components['material_detail'] = f"gạch ống {brick_dim}"
+                else:
+                    # Infer type based on typical dimensions (domain knowledge)
+                    # Solid bricks: ~6.5x10.5x22 (thickness < 10cm)
+                    # Hollow blocks: ~8x8x19, 10x10x20 (more cube-like)
+                    first_dim = float(brick_match.group(1)) if brick_match else 0
+                    if first_dim > 0 and first_dim < 8:
+                        # Small first dimension suggests solid brick
+                        components['material_detail'] = f"gạch đặc {brick_dim}"
+                    else:
+                        components['material_detail'] = f"gạch {brick_dim}"
+            elif 'đặc' in text_lower:
+                components['material_detail'] = 'gạch đặc'
+            elif 'ống' in text_lower:
+                components['material_detail'] = 'gạch ống'
+
+        # Extract MEP material types (PPR, PVC, HDPE)
+        for mat_type in ['ppr', 'pvc', 'hdpe', 'xlpe', 'phc']:
+            if mat_type in text_lower:
+                components['material_type'] = mat_type.upper()
+                break
+
+        # Extract MEP pipe diameter (D63, D50, D110, etc.) - add to specs
+        pipe_diameter = re.search(r'\bd(\d{2,3})\b', text_lower)
+        if pipe_diameter and components.get('material_type'):
+            components['specs'].append(f"D{pipe_diameter.group(1)}")
 
         # Extract additional details (thương phẩm, đá 1x2, cấp đất, vữa, etc.)
         detail_patterns = [
@@ -421,8 +648,14 @@ class DescriptionNormalizer:
             (r'trộn\s+tại\s+chỗ', 'trộn tại chỗ'),
             (r'đá\s+(\d+)x(\d+)', lambda m: f"đá {m.group(1)}x{m.group(2)}"),
             (r'vữa\s+(M\d+)', lambda m: f"vữa {m.group(1)}"),
-            (r'đất\s+cấp\s+(\d+)', lambda m: f"đất cấp {m.group(1)}"),
-            (r'cấp\s+(\d+)', lambda m: f"cấp {m.group(1)}"),
+            (r'đất\s+cấp\s+(\d+)', lambda m: f"đất cấp {m.group(1)}"),  # Keep "đất cấp X"
+            (r'đất\s+mua\s+mới', 'đất mua mới'),  # New soil source
+            (r'đất\s+tận\s+dụng', 'đất tận dụng'),  # Reused soil
+            (r'nội\s+bộ\s+(?:công\s+trường|dự\s+án)', 'nội bộ dự án'),  # Internal transport
+            (r'lớp\s+dưới', 'loại II'),  # Lower layer → Type II
+            (r'lớp\s+trên', 'loại I'),  # Upper layer → Type I
+            (r'lớp\s+thấm\s+bám', 'lớp thấm bám'),  # Tack coat
+            (r'\bkt\s*(\d+)x(\d+)x(\d+)\s*(?:mm|cm)?', lambda m: f"KT {m.group(1)}x{m.group(2)}x{m.group(3)}"),  # Stone/slab dimensions
             (r'granite', 'Granite'),
             (r'ceramic', 'Ceramic'),
             (r'gỗ', 'gỗ'),
@@ -436,7 +669,16 @@ class DescriptionNormalizer:
             (r'hệ\s+khung\s+giàn', 'hệ khung giàn'),
             (r'tôn\s+tráng\s+kẽm', 'tôn tráng kẽm'),
             (r'bọc\s+cách\s+nhiệt', 'bọc cách nhiệt'),
+            # MEP details - only add PN if not already in grade
+            (r'\bpn\s*(\d+)\b', lambda m: f"PN{m.group(1)}"),
+            # Thickness pattern for plastering (dày 15, dày 220) - NOT for wall thickness (chiều dày > 33 cm)
+            # Only match "dày X" not "chiều dày > X"
+            (r'dày\s+(\d+)(?!\s*mm)', lambda m: f"dày {m.group(1)}"),
         ]
+
+        # Track what's already extracted to avoid duplicates
+        extracted_position = components.get('position', '')
+        extracted_grade = components.get('grade', '')
 
         for pattern_def in detail_patterns:
             if len(pattern_def) == 2:
@@ -445,12 +687,20 @@ class DescriptionNormalizer:
                     match = re.search(pattern, text_lower)
                     if match:
                         detail_value = replacement(match)
-                        if detail_value not in components['details']:  # Avoid duplicates
+                        # Avoid duplicates with position or already extracted details
+                        if detail_value not in components['details']:
+                            if extracted_position and detail_value.lower() in extracted_position.lower():
+                                continue  # Skip if already in position
+                            if extracted_grade and detail_value == extracted_grade:
+                                continue  # Skip if already in grade
                             components['details'].append(detail_value)
                 else:
                     match = re.search(pattern, text_lower)
                     if match:
-                        if replacement not in components['details']:  # Avoid duplicates
+                        # Avoid duplicates with position or already extracted details
+                        if replacement not in components['details']:
+                            if extracted_position and replacement.lower() in extracted_position.lower():
+                                continue  # Skip if already in position
                             components['details'].append(replacement)
 
         return components
@@ -461,10 +711,10 @@ class DescriptionNormalizer:
         Áp dụng template đúng cho từng nhóm công tác
 
         Templates:
-        - Earthworks & Piling: [Hành động][Đối tượng][vị trí] - [Kích thước/Tải trọng] - [Cấp đất/Ghi chú]
-        - Concrete & Rebar: [Hành động][Vật liệu][vị trí] - [Mác/Kính] - [Đặc tính]
-        - Finishing: [Động từ][Vật liệu][vị trí] - [Quy cách/Kích thước] - [Mã hiệu/Màu sắc]
-        - Steel & MEP: [Động từ][Vật liệu/Hệ thống][vị trí] - [Quy cách] - [Phương pháp]
+        - Earthworks & Piling: [Hành động][Đối tượng][vị trí] - [Thiết bị/Kích thước] - [Cấp đất/Ghi chú]
+        - Concrete & Rebar: [Hành động][Vật liệu][vị trí] - [Mác/Kích thước] - [Đặc tính]
+        - Finishing: [Động từ][vị trí] - [Vật liệu chi tiết] - [Kích thước]
+        - Steel & MEP: [Động từ][Vật liệu/Hệ thống][vị trí] - [Loại] - [Quy cách]
 
         Quy tắc:
         1. Headline: Viết hoa chữ cái đầu
@@ -473,99 +723,324 @@ class DescriptionNormalizer:
         4. Details: Sau dấu - thứ hai
         """
         parts = []
+        verb = components.get('verb')
+        material = components.get('material')
+        position = components.get('position')
+        equipment = components.get('equipment')
+        material_detail = components.get('material_detail')
+        grade = components.get('grade')
+        specs = components.get('specs', [])
+        details = components.get('details', [])
 
-        # Part 1: Verb + Material (Headline - viết hoa chữ đầu)
-        headline = []
-        if components['verb']:
-            headline.append(components['verb'])
-        if components['material']:
-            headline.append(components['material'])
+        if category == self.WorkCategory.ROAD_INFRASTRUCTURE:
+            # Template varies by work type:
+            # Traffic signs: [Lắp đặt] [biển báo] [type] - [size]
+            # Monitoring: [Lắp đặt] [bản quan trắc] [type]
+            # Paving: [Rải thảm/Tưới] [mặt đường] - [material] - [grade]
+            # Landscaping: [Trồng] [cây/cỏ] [location] - [details]
+            headline = []
+            if verb:
+                headline.append(verb)
+            if material:
+                verb_lower = verb.lower() if verb else ''
+                material_lower = material.lower()
+                if material_lower not in verb_lower:
+                    headline.append(material)
+            if position:
+                headline.append(position)
+            if headline:
+                parts.append(' '.join(headline))
 
-        if headline:
-            parts.append(' '.join(headline))
+            # Add specs and grade
+            spec_parts = []
+            if specs:
+                spec_parts.extend(specs[:2])
+            if grade:
+                spec_parts.append(grade)
+            if spec_parts:
+                parts.append(' - ')
+                parts.append(' - '.join(spec_parts))
 
-        # Part 2: Position (viết thường - quy tắc 2)
-        if components['position']:
-            if parts:
-                parts[0] += f" {components['position']}"  # Nối liền không cần dấu
-            else:
-                parts.append(components['position'])
-
-        # Part 3: Primary Specs (sau dấu - đầu tiên)
-        # Template khác nhau theo category
-        primary_specs = []
-
-        if category == self.WorkCategory.EARTHWORKS_PILING:
-            # [Kích thước/Tải trọng]
-            if components['specs']:
-                primary_specs.extend(components['specs'][:2])
-            if components['grade']:
-                # Grade cho earthworks thường là soil type, không hiển thị ở primary
-                pass
-
-        elif category == self.WorkCategory.CONCRETE_REBAR:
-            # [Mác/Kính]
-            if components['grade']:
-                primary_specs.append(components['grade'])
-            if components['specs']:
-                primary_specs.extend(components['specs'][:1])
+            # Add details
+            if details:
+                parts.append(' - ')
+                parts.append(' '.join(details))
 
         elif category == self.WorkCategory.FINISHING:
-            # [Quy cách/Kích thước]
-            if components['specs']:
-                primary_specs.extend(components['specs'][:2])
-            if components['grade']:
-                primary_specs.append(components['grade'])
+            # Template: [Động từ][vị trí] - [Vật liệu chi tiết] - [Kích thước/Mác]
+            # e.g., "Lát sàn - gạch granite - 600x600"
+            # e.g., "Trát tường ngoài - dày 15mm - M75"
+            # e.g., "Xây tường - gạch đặc 6.5x10.5x22 - M75 - dày 220"
+            headline = []
+            if verb:
+                headline.append(verb)
+
+            # For Xây/Trát/Sơn - include tường/position
+            if verb and verb.lower() in ['xây', 'trát', 'sơn']:
+                if position:
+                    headline.append(position)
+                elif verb.lower() == 'xây':
+                    # Default: Xây tường gạch
+                    headline.append('tường gạch')
+                elif verb.lower() == 'trát':
+                    # Default: Trát tường
+                    headline.append('tường')
+            else:
+                # For Lát/Ốp - just use simple position
+                if position:
+                    simple_pos = position.split()[0] if position else None  # Get first word
+                    if simple_pos:
+                        headline.append(simple_pos)
+
+            if headline:
+                parts.append(' '.join(headline))
+
+            # Material detail (gạch granite, gạch đặc 5x10.5x22)
+            if material_detail:
+                parts.append(' - ')
+                parts.append(material_detail)
+            elif material and verb and verb.lower() not in ['trát', 'sơn']:
+                parts.append(' - ')
+                parts.append(material)
+
+            # For masonry (Xây): grade first, then thickness
+            if verb and verb.lower() == 'xây':
+                # Grade (M75 for mortar)
+                if grade:
+                    parts.append(' - ')
+                    parts.append(grade)
+                # Then thickness
+                thickness_specs = [s for s in specs if 'dày' in s]
+                thickness_details = [d for d in details if d.startswith('dày')]
+                if thickness_specs:
+                    parts.append(' - ')
+                    parts.append(thickness_specs[0])
+                elif thickness_details:
+                    for td in thickness_details:
+                        parts.append(' - ')
+                        parts.append(td if 'mm' in td else td)  # Keep as-is (dày 220)
+            else:
+                # For plastering/painting: specs first, then grade
+                spec_parts = []
+                # First add thickness from specs
+                thickness_specs = [s for s in specs if 'dày' in s]
+                if thickness_specs:
+                    spec_parts.extend(thickness_specs)
+                # Also check thickness from details
+                thickness_details = [d for d in details if d.startswith('dày')]
+                if thickness_details and not thickness_specs:
+                    # Format as "dày Xmm"
+                    for td in thickness_details:
+                        if 'mm' not in td:
+                            spec_parts.append(f"{td}mm")
+                        else:
+                            spec_parts.append(td)
+                # Default thickness for plastering
+                if verb and verb.lower() == 'trát' and not spec_parts:
+                    spec_parts.append('dày 15mm')
+
+                # Then tile dimensions (NxN format for tiles)
+                tile_specs = [s for s in specs if re.match(r'^\d+x\d+$', s)]
+                if tile_specs and not material_detail:  # Only if not already in material_detail
+                    spec_parts.extend(tile_specs[:1])
+                # Add tile dimensions even if material_detail exists (for tiles like granite)
+                if tile_specs and material_detail and 'granite' in material_detail.lower():
+                    spec_parts.extend(tile_specs[:1])
+                if spec_parts:
+                    parts.append(' - ')
+                    parts.append(' - '.join(spec_parts))
+
+                # Grade (M75 for mortar) - only for plastering, default if not specified
+                if verb and verb.lower() == 'trát':
+                    if grade:
+                        parts.append(' - ')
+                        parts.append(grade)
+                    else:
+                        # Default M75 for plastering
+                        parts.append(' - ')
+                        parts.append('M75')
+
+            # Details (1 lót 2 phủ for painting) - but not for tiling/masonry
+            if details and verb and verb.lower() in ['sơn']:
+                # Filter out thickness from details since it's already handled
+                paint_details = [d for d in details if not d.startswith('dày')]
+                if paint_details:
+                    parts.append(' - ')
+                    parts.append(' '.join(paint_details))
 
         elif category == self.WorkCategory.STEEL_MEP:
-            # [Quy cách]
-            if components['specs']:
-                primary_specs.extend(components['specs'][:2])
-            if components['grade']:
-                primary_specs.append(components['grade'])
+            # Template: [Động từ][Vật liệu][vị trí] - [Loại] - [Đường kính] - [Áp suất]
+            # e.g., "Lắp đặt ống cấp nước - PPR - D63 - PN16"
+            headline = []
+            if verb:
+                headline.append(verb)
+            if material:
+                # For MEP, don't include material type (PPR/PVC) in headline if it will be added separately
+                material_type = components.get('material_type')
+                if material_type and material_type in material.upper():
+                    # Material includes the type (e.g., "ống PPR") - just use "ống"
+                    simple_material = material.split()[0] if ' ' in material else material
+                    headline.append(simple_material)
+                else:
+                    headline.append(material)
+            if position:
+                headline.append(position)
+            if headline:
+                parts.append(' '.join(headline))
+
+            # Material type (PPR, PVC, HDPE)
+            material_type = components.get('material_type')
+            if material_type:
+                parts.append(' - ')
+                parts.append(material_type)
+
+            # Specs (D63, etc.) - filter out rebar comparison specs
+            other_specs = [s for s in specs if not (s.startswith('D') and any(c in s for c in '<>='))]
+            if other_specs:
+                for spec in other_specs[:2]:
+                    parts.append(' - ')
+                    parts.append(spec)
+
+            # Grade (PN16, etc.) - always add if present
+            if grade:
+                parts.append(' - ')
+                parts.append(grade)
+
+        elif category == self.WorkCategory.EARTHWORKS_PILING:
+            # Template varies by work type:
+            # Excavation: [Hành động][Đối tượng][vị trí] - [Thiết bị Kích thước] - [Cấp đất]
+            # Piling: [Hành động][Đối tượng] - [Tải trọng] - [Cấp đất]
+            # Compaction: [Hành động][Đối tượng] - [Nguồn đất] - [Kxx]
+            headline = []
+            if verb:
+                headline.append(verb)
+            # Only add material if it's not already contained in the verb
+            if material:
+                verb_lower = verb.lower() if verb else ''
+                material_lower = material.lower()
+                if material_lower not in verb_lower:
+                    headline.append(material)
+            if position:
+                headline.append(position)
+            if headline:
+                parts.append(' '.join(headline))
+
+            # Check if this is piling work (Ép cọc, đóng cọc)
+            is_piling = verb and verb.lower() in ['ép', 'đóng', 'khoan']
+            # Check if this is compaction work (Đắp đất)
+            is_compaction = verb and verb.lower() == 'đắp' and grade and grade.startswith('K')
+
+            # Equipment + specs (different handling for piling vs excavation)
+            equip_specs = []
+            if is_piling:
+                # For piling: only include specs (load capacity), skip equipment (robot/máy ép)
+                if specs:
+                    equip_specs.extend(specs[:2])
+            elif not is_compaction:
+                # For excavation: include equipment + specs
+                if equipment:
+                    equip_specs.append(equipment)
+                if specs:
+                    equip_specs.extend(specs[:2])
+
+            if grade and not details and not is_compaction:  # Include grade if no details (not for compaction)
+                equip_specs.append(grade)
+            if equip_specs:
+                parts.append(' - ')
+                parts.append(' '.join(equip_specs))
+
+            # Details (đất mua mới, đất tận dụng, đất cấp X, loại I/II)
+            if details:
+                # Filter details - remove "đầm chặt" (implied for compaction)
+                filtered_details = [d for d in details if d != 'đầm chặt']
+                if filtered_details:
+                    parts.append(' - ')
+                    parts.append(' '.join(filtered_details))
+
+            # K grade at the end for compaction work
+            if is_compaction and grade:
+                parts.append(' - ')
+                parts.append(grade)
+
+        elif category == self.WorkCategory.CONCRETE_REBAR:
+            # Template: [Hành động][Vật liệu][vị trí] - [Đường kính/Mác] - [Loại thép/Đặc tính]
+            # e.g., "Bê tông lót móng - M100 - thương phẩm"
+            # e.g., "Gia công cốt thép móng - D<=10 - CB300"
+            headline = []
+            if verb:
+                headline.append(verb)
+            if material:
+                verb_lower = verb.lower() if verb else ''
+                material_lower = material.lower()
+                if material_lower not in verb_lower:
+                    headline.append(material)
+            if position:
+                headline.append(position)
+            if headline:
+                parts.append(' '.join(headline))
+
+            # Specs (D<=10, etc.) and grade
+            primary_specs = []
+            rebar_specs = [s for s in specs if s.startswith('D') and any(c in s for c in '<>=')]
+            if rebar_specs:
+                primary_specs.extend(rebar_specs)
+
+            # Default M100 for "lót móng" when no grade specified (but not for ván khuôn)
+            effective_grade = grade
+            is_formwork = (material and 'ván khuôn' in material.lower()) or (verb and 'ván khuôn' in verb.lower())
+            if not effective_grade and position and 'lót móng' in position and not is_formwork:
+                effective_grade = 'M100'
+
+            if effective_grade:
+                primary_specs.append(effective_grade)
+            if primary_specs:
+                parts.append(' - ')
+                parts.append(' - '.join(primary_specs))
+
+            # Details (thương phẩm)
+            if details:
+                parts.append(' - ')
+                parts.append(' '.join(details))
 
         else:
             # General fallback
-            if components['grade']:
-                primary_specs.append(components['grade'])
-            if components['specs']:
-                primary_specs.extend(components['specs'][:2])
+            headline = []
+            if verb:
+                headline.append(verb)
+            if material:
+                verb_lower = verb.lower() if verb else ''
+                material_lower = material.lower()
+                if material_lower not in verb_lower:
+                    headline.append(material)
+            if position:
+                headline.append(position)
 
-        if primary_specs:
-            parts.append(' - ')
-            parts.append(' '.join(primary_specs))
+            # Special case: nilon without verb -> add "Rải"
+            if not verb and material and 'nilon' in material.lower():
+                headline = ['Rải', material]
 
-        # Part 4: Details (sau dấu - thứ hai)
-        details = []
+            if headline:
+                parts.append(' '.join(headline))
 
-        if category == self.WorkCategory.EARTHWORKS_PILING:
-            # [Cấp đất/Ghi chú]
-            if components['details']:
-                details.extend(components['details'])
+            # Specs and grade
+            all_specs = []
+            if specs:
+                all_specs.extend(specs[:2])
+            if grade:
+                all_specs.append(grade)
 
-        elif category == self.WorkCategory.CONCRETE_REBAR:
-            # [Đặc tính] (thương phẩm, đá 1x2, etc.)
-            if components['details']:
-                details.extend(components['details'])
+            # Default thickness for nilon: 0.3mm
+            if material and 'nilon' in material.lower() and not all_specs:
+                all_specs.append('0.3mm')
 
-        elif category == self.WorkCategory.FINISHING:
-            # [Mã hiệu/Màu sắc]
-            if components['details']:
-                details.extend(components['details'])
+            if all_specs:
+                parts.append(' - ')
+                parts.append(' '.join(all_specs))
 
-        elif category == self.WorkCategory.STEEL_MEP:
-            # [Phương pháp]
-            if components['details']:
-                details.extend(components['details'])
-
-        else:
-            # General
-            if components['details']:
-                details.extend(components['details'])
-
-        if details:
-            parts.append(' - ')
-            parts.append(' '.join(details))
+            # Details
+            if details:
+                parts.append(' - ')
+                parts.append(' '.join(details))
 
         result = ''.join(parts)
 
