@@ -7,7 +7,8 @@ from app.api.v1.endpoints import (
     line_items,
     sec_codes,
     analytics,
-    users
+    users,
+    master_items
 )
 
 api_router = APIRouter()
@@ -19,4 +20,5 @@ api_router.include_router(projects.router, prefix="/projects", tags=["Projects"]
 api_router.include_router(files.router, prefix="/files", tags=["BOQ Files"])
 api_router.include_router(line_items.router, prefix="/line-items", tags=["Line Items"])
 api_router.include_router(sec_codes.router, prefix="/sec-codes", tags=["SEC Codes"])
+api_router.include_router(master_items.router, prefix="/master-items", tags=["Master Items"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])

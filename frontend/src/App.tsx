@@ -8,6 +8,9 @@ import FileUpload from './pages/FileUpload'
 import LineItems from './pages/LineItems'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import MasterItems from './pages/MasterItems'
+import WorkCodeGenerator from './pages/WorkCodeGenerator'
+import MasterStatistics from './pages/MasterStatistics'
 import { useAuthStore } from './store/authStore'
 
 const { Content } = Layout
@@ -29,6 +32,9 @@ function App() {
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/upload" element={<FileUpload />} />
                   <Route path="/line-items" element={<LineItems />} />
+                  <Route path="/master-items" element={<MasterItems />} />
+                  <Route path="/work-code-generator" element={<WorkCodeGenerator />} />
+                  <Route path="/master-statistics" element={<MasterStatistics />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

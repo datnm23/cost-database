@@ -13,6 +13,8 @@ import logging
 from app.models.line_item import LineItem
 from app.models.master_work_item import MasterWorkItem
 from app.utils.excel_processor import ExcelProcessor
+from app.services.work_code_generator import WorkCodeGenerator
+from app.services.description_normalizer import DescriptionNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +27,13 @@ class MasterDataService:
     def __init__(self, db: Session):
         self.db = db
         self.excel_processor = ExcelProcessor()
+        self.code_generator = WorkCodeGenerator(db)
+        self.description_normalizer = DescriptionNormalizer()
 
     def normalize_description(self, text: str) -> str:
         """
         Chuẩn hóa description để dễ so sánh
+        - Áp dụng Phương án 5 (Natural Syntax)
         - Lowercase
         - Remove extra spaces
         - Unicode normalization
@@ -36,16 +41,24 @@ class MasterDataService:
         if not text:
             return ""
 
+        # Bước 1: Chuẩn hóa theo Natural Syntax (Phương án 5)
+        try:
+            text_normalized = self.description_normalizer.normalize(text)
+        except Exception as e:
+            logger.warning(f"Failed to apply Natural Syntax normalization: {e}")
+            text_normalized = text
+
+        # Bước 2: Chuẩn hóa cho indexing/search (lowercase)
         # Unicode normalization
-        text = unicodedata.normalize('NFC', text)
+        text_normalized = unicodedata.normalize('NFC', text_normalized)
 
         # Lowercase
-        text = text.lower()
+        text_normalized = text_normalized.lower()
 
         # Remove extra spaces
-        text = ' '.join(text.split())
+        text_normalized = ' '.join(text_normalized.split())
 
-        return text.strip()
+        return text_normalized.strip()
 
     def extract_work_code(self, description: str, index: int) -> str:
         """
@@ -115,7 +128,10 @@ class MasterDataService:
 
         for idx, item in enumerate(items, 1):
             try:
-                # Normalize description
+                # Chuẩn hóa description theo Phương án 5 (Natural Syntax)
+                desc_natural = self.description_normalizer.normalize(item.description)
+
+                # Normalize cho indexing (lowercase)
                 desc_normalized = self.normalize_description(item.description)
 
                 # Check if similar item exists
@@ -131,11 +147,15 @@ class MasterDataService:
                     stats['updated'] += 1
                 else:
                     # Create new master item
-                    work_code = self.extract_work_code(item.description, idx)
+                    work_code = self.code_generator.generate_work_code(
+                        description=desc_natural,  # Sử dụng description đã chuẩn hóa
+                        sec_code=item.sec_code,
+                        unit=item.unit
+                    )
                     master_item = MasterWorkItem(
                         work_code=work_code,
-                        description=item.description,
-                        description_normalized=desc_normalized,
+                        description=desc_natural,  # Lưu description theo Natural Syntax
+                        description_normalized=desc_normalized,  # Lưu lowercase cho search
                         sec_code=item.sec_code,
                         unit_standard=item.unit,
                         ref_unit_price_min=item.unit_price if item.unit_price > 0 else None,

@@ -20,6 +20,7 @@ class ProcessFileRequest(BaseModel):
     column_mapping: Dict[str, str]
     has_headers: Optional[bool] = True
     sheet_name: Optional[str] = None
+    auto_build_master: Optional[bool] = False  # Auto build master database after processing
 
 
 @router.post("/upload", status_code=201)
@@ -115,6 +116,8 @@ async def process_file(
     """
     Process uploaded file with confirmed column mapping
     Step 2: Parse, clean, classify and save data
+
+    Optional: Auto-build master database after processing
     """
     service = FileService(db)
 
@@ -132,10 +135,27 @@ async def process_file(
             user_id=current_user.user_id
         )
 
-        return {
+        # Auto-build master database if requested
+        master_stats = None
+        if request.auto_build_master:
+            from app.services.master_data_service import MasterDataService
+
+            master_service = MasterDataService(db)
+            master_stats = master_service.build_master_from_file(
+                file_id=file_id,
+                min_confidence=60.0,
+                skip_unclassified=False
+            )
+
+        response = {
             "message": "File processed successfully",
             **result
         }
+
+        if master_stats:
+            response["master_build"] = master_stats
+
+        return response
 
     except Exception as e:
         logger.error(f"Error processing file: {e}", exc_info=True)

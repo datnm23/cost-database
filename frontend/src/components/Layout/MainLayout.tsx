@@ -8,6 +8,9 @@ import {
   BarChartOutlined,
   SettingOutlined,
   LogoutOutlined,
+  DatabaseOutlined,
+  ThunderboltOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -28,6 +31,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { key: '/projects', label: 'Projects', icon: <FolderOutlined /> },
     { key: '/upload', label: 'Upload BOQ', icon: <UploadOutlined /> },
     { key: '/line-items', label: 'Line Items', icon: <UnorderedListOutlined /> },
+    {
+      key: 'master-group',
+      label: 'Master Database',
+      icon: <DatabaseOutlined />,
+      children: [
+        { key: '/master-items', label: 'Master Items', icon: <DatabaseOutlined /> },
+        { key: '/work-code-generator', label: 'Code Generator', icon: <ThunderboltOutlined /> },
+        { key: '/master-statistics', label: 'Statistics', icon: <PieChartOutlined /> },
+      ],
+    },
     { key: '/analytics', label: 'Analytics', icon: <BarChartOutlined /> },
     { key: '/settings', label: 'Settings', icon: <SettingOutlined /> },
   ]
