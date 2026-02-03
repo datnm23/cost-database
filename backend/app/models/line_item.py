@@ -10,6 +10,12 @@ class ClassificationMethod(str, enum.Enum):
     manual = "manual"
 
 
+class MatchType(str, enum.Enum):
+    exact = "exact"
+    fuzzy = "fuzzy"
+    none = "none"
+
+
 class LineItem(Base):
     __tablename__ = "line_items"
 
@@ -35,6 +41,12 @@ class LineItem(Base):
     normalization_confidence = Column(DECIMAL(5, 2), nullable=True)
     work_category = Column(String(50), nullable=True)
 
+    # Match tracking fields (for linking to master work items)
+    matched_master_id = Column(Integer, ForeignKey("master_work_items.master_id", ondelete="SET NULL"), nullable=True, index=True)
+    match_similarity = Column(DECIMAL(5, 2), nullable=True)
+    match_type = Column(Enum(MatchType), default=MatchType.none)
+    original_sheet_name = Column(String(100), nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -42,6 +54,7 @@ class LineItem(Base):
     boq_file = relationship("BOQFile", back_populates="line_items")
     project = relationship("Project", back_populates="line_items")
     sec = relationship("SECCode")
+    matched_master = relationship("MasterWorkItem", backref="matched_line_items")
 
     def __repr__(self):
         return f"<LineItem {self.line_item_id}: {self.description[:30]}...>"

@@ -7,17 +7,20 @@ Creates structured Excel templates with:
 3. Matching results against Master database
 4. Items needing review
 5. New items to add to Master
+6. Original format preservation for Excel files
 """
 import os
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 import logging
+import shutil
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 from sqlalchemy.orm import Session
 
@@ -553,6 +556,167 @@ class BOQExportService:
         # Save
         wb.save(output_path)
         logger.info(f"Exported line items to {output_path}")
+
+        return output_path
+
+    def export_with_original_format(
+        self,
+        file_id: int,
+        output_path: str
+    ) -> str:
+        """
+        Export with original Excel format preserved
+
+        This method:
+        1. Copies the original Excel file
+        2. Adds a new "Processing Results" sheet
+        3. Preserves all original formatting, comments, and notes
+
+        Args:
+            file_id: BOQ file ID
+            output_path: Path to save the new Excel file
+
+        Returns:
+            Path to the created file
+        """
+        # Get file info
+        boq_file = self.db.query(BOQFile).filter(BOQFile.file_id == file_id).first()
+        if not boq_file:
+            raise ValueError(f"BOQ file {file_id} not found")
+
+        original_path = boq_file.file_path
+        if not original_path or not os.path.exists(original_path):
+            raise ValueError(f"Original file not found at: {original_path}")
+
+        # Copy original file to preserve all formatting
+        shutil.copy2(original_path, output_path)
+        logger.info(f"Copied original file from {original_path} to {output_path}")
+
+        # Load the copied workbook
+        try:
+            wb = load_workbook(output_path)
+        except Exception as e:
+            logger.error(f"Failed to load workbook: {e}")
+            raise ValueError(f"Failed to load Excel file: {e}")
+
+        # Get line items
+        line_items = self.db.query(LineItem).filter(
+            LineItem.file_id == file_id
+        ).order_by(LineItem.row_number).all()
+
+        # Create new sheet for processing results
+        if "Processing Results" in wb.sheetnames:
+            del wb["Processing Results"]
+
+        ws = wb.create_sheet("Processing Results", 0)
+
+        # Add header with styling
+        headers = [
+            "Row No.",
+            "Original Description",
+            "Normalized Description",
+            "Work Category",
+            "SEC Code",
+            "Confidence %",
+            "Match Type",
+            "Master Work Code",
+            "Unit",
+            "Quantity",
+            "Unit Price",
+            "Amount",
+            "Original Sheet",
+            "Link to Original"
+        ]
+
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER_ALIGN
+            cell.border = THIN_BORDER
+
+        # Write data with links back to original rows
+        for row_idx, item in enumerate(line_items, 2):
+            # Determine fill based on confidence/match type
+            if item.confidence_score and item.confidence_score >= 95:
+                fill = EXACT_MATCH_FILL
+            elif item.confidence_score and item.confidence_score >= 80:
+                fill = FUZZY_MATCH_FILL
+            elif item.needs_review:
+                fill = NEW_ITEM_FILL
+            else:
+                fill = PatternFill()
+
+            # Get match type value safely
+            match_type_val = ""
+            if hasattr(item, 'match_type') and item.match_type:
+                match_type_val = item.match_type.value if hasattr(item.match_type, 'value') else str(item.match_type)
+
+            # Get master work code if matched
+            master_code = ""
+            if hasattr(item, 'matched_master') and item.matched_master:
+                master_code = item.matched_master.work_code
+
+            # Original sheet name
+            sheet_name = item.original_sheet_name if hasattr(item, 'original_sheet_name') else ""
+
+            data = [
+                item.row_number,
+                item.description[:200] if item.description else "",
+                item.normalized_description[:200] if item.normalized_description else "",
+                item.work_category or "",
+                item.sec_code or "",
+                float(item.confidence_score) if item.confidence_score else "",
+                match_type_val,
+                master_code,
+                item.unit or "",
+                float(item.quantity) if item.quantity else "",
+                float(item.unit_price) if item.unit_price else "",
+                float(item.amount) if item.amount else "",
+                sheet_name,
+                ""  # Link will be added below
+            ]
+
+            for col, value in enumerate(data, 1):
+                cell = ws.cell(row=row_idx, column=col, value=value)
+                if fill.fill_type:
+                    cell.fill = fill
+                cell.border = THIN_BORDER
+
+                if col in [1, 6, 7]:
+                    cell.alignment = CENTER_ALIGN
+                elif col in [10, 11, 12]:
+                    cell.alignment = RIGHT_ALIGN
+                    if value:
+                        cell.number_format = '#,##0.00' if col == 11 else '#,##0'
+                else:
+                    cell.alignment = LEFT_ALIGN
+
+            # Add hyperlink to original row if we have sheet name and row number
+            if sheet_name and item.row_number and sheet_name in wb.sheetnames:
+                link_cell = ws.cell(row=row_idx, column=14)
+                link_cell.value = f"Go to Row {item.row_number}"
+                link_cell.hyperlink = f"#'{sheet_name}'!A{item.row_number}"
+                link_cell.font = Font(color="0563C1", underline="single")
+
+        # Column widths
+        col_widths = [8, 50, 50, 15, 12, 12, 12, 20, 8, 12, 15, 18, 20, 15]
+        for col, width in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(col)].width = width
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+        # Add summary info at the top of sheet
+        ws.insert_rows(1, 3)
+        ws['A1'] = "BOQ PROCESSING RESULTS"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A2'] = f"File: {boq_file.file_name}"
+        ws['A3'] = f"Processed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        # Save
+        wb.save(output_path)
+        logger.info(f"Exported with original format to {output_path}")
 
         return output_path
 

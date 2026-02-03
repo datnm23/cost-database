@@ -71,6 +71,50 @@ export interface SearchByCodeResponse {
   items: MasterItem[]
 }
 
+export interface PriceDistribution {
+  min: number
+  max: number
+  avg: number
+  median: number
+  count: number
+  p25?: number
+  p75?: number
+}
+
+export interface SourceProject {
+  project_id: number
+  project_name: string
+  project_code: string
+  project_type?: string
+  region?: string
+  unit_price: number
+  quantity?: number
+  recorded_at: string
+  file_name: string
+}
+
+export interface PriceHistoryResponse {
+  master_item_id: number
+  work_code: string
+  description: string
+  distribution: PriceDistribution
+  source_projects: SourceProject[]
+  total_records: number
+}
+
+export interface PriceChartData {
+  master_item_id: number
+  buckets: Array<{
+    range_start: number
+    range_end: number
+    count: number
+    percentage: number
+  }>
+  total: number
+  min_price?: number
+  max_price?: number
+}
+
 export const masterItemsService = {
   /**
    * List master items with filters
@@ -197,6 +241,54 @@ export const masterItemsService = {
     message: string
   }> => {
     const response = await api.get('/master-items/export/csv')
+    return response.data
+  },
+
+  /**
+   * Get price history for a master item
+   */
+  getPriceHistory: async (
+    masterId: number,
+    params?: {
+      region?: string
+      project_type?: string
+      date_from?: string
+      date_to?: string
+      skip?: number
+      limit?: number
+    }
+  ): Promise<PriceHistoryResponse> => {
+    const response = await api.get(`/master-items/${masterId}/price-history`, {
+      params,
+    })
+    return response.data
+  },
+
+  /**
+   * Get price chart data (histogram buckets)
+   */
+  getPriceChartData: async (
+    masterId: number,
+    bucketCount: number = 10
+  ): Promise<PriceChartData> => {
+    const response = await api.get(
+      `/master-items/${masterId}/price-history/chart-data`,
+      {
+        params: { bucket_count: bucketCount },
+      }
+    )
+    return response.data
+  },
+
+  /**
+   * Get available regions for price history
+   */
+  getPriceHistoryRegions: async (
+    masterId: number
+  ): Promise<{ master_item_id: number; regions: string[] }> => {
+    const response = await api.get(
+      `/master-items/${masterId}/price-history/regions`
+    )
     return response.data
   },
 }

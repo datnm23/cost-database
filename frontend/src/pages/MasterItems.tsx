@@ -24,9 +24,11 @@ import {
   FileExcelOutlined,
   EditOutlined,
   DeleteOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { masterItemsService, MasterItem } from '@/services/masterItemsService'
+import PriceDrillDown from '@/components/PriceDrillDown'
 import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text } = Typography
@@ -38,6 +40,15 @@ export default function MasterItems() {
   const [secCodeFilter, setSecCodeFilter] = useState<string | undefined>()
   const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [pagination, setPagination] = useState({ skip: 0, limit: 50 })
+
+  // Price drill-down modal state
+  const [priceDrillDownOpen, setPriceDrillDownOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<MasterItem | null>(null)
+
+  const handlePriceClick = (item: MasterItem) => {
+    setSelectedItem(item)
+    setPriceDrillDownOpen(true)
+  }
 
   // Fetch master items
   const {
@@ -139,9 +150,18 @@ export default function MasterItems() {
       key: 'ref_unit_price_avg',
       width: 150,
       align: 'right',
-      render: (price: number | null) =>
+      render: (price: number | null, record: MasterItem) =>
         price ? (
-          <Text>{price.toLocaleString('vi-VN')} VND</Text>
+          <Tooltip title="Click to see price history">
+            <Button
+              type="link"
+              style={{ padding: 0, height: 'auto' }}
+              onClick={() => handlePriceClick(record)}
+              icon={<DollarOutlined style={{ marginRight: 4 }} />}
+            >
+              {price.toLocaleString('vi-VN')} VND
+            </Button>
+          </Tooltip>
         ) : (
           <Text type="secondary">-</Text>
         ),
@@ -324,6 +344,20 @@ export default function MasterItems() {
           }}
         />
       </Card>
+
+      {/* Price Drill-Down Modal */}
+      {selectedItem && (
+        <PriceDrillDown
+          masterId={selectedItem.master_id}
+          workCode={selectedItem.work_code}
+          description={selectedItem.description}
+          open={priceDrillDownOpen}
+          onClose={() => {
+            setPriceDrillDownOpen(false)
+            setSelectedItem(null)
+          }}
+        />
+      )}
     </div>
   )
 }

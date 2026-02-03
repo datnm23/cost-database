@@ -175,7 +175,7 @@ describe('namingService', () => {
   })
 
   describe('normalizeLineItem', () => {
-    it('should call correct endpoint for single item normalization', async () => {
+    it('should call correct endpoint for single item normalization with AI', async () => {
       const mockResponse = {
         data: {
           message: 'Success',
@@ -184,6 +184,8 @@ describe('namingService', () => {
           normalized_description: 'Normalized',
           work_category: 'concrete_rebar',
           normalization_confidence: 85,
+          ai_enhanced: true,
+          ai_corrections: ['Mapped PC30 to M100'],
         },
       }
 
@@ -191,13 +193,58 @@ describe('namingService', () => {
 
       const result = await namingService.normalizeLineItem(1)
 
-      expect(apiClient.post).toHaveBeenCalledWith('/line-items/1/normalize')
+      expect(apiClient.post).toHaveBeenCalledWith('/line-items/1/normalize?use_ai=true')
       expect(result.normalized_description).toBe('Normalized')
+      expect(result.ai_enhanced).toBe(true)
+    })
+
+    it('should call without AI when specified', async () => {
+      const mockResponse = {
+        data: {
+          message: 'Success',
+          line_item_id: 1,
+          original_description: 'Original',
+          normalized_description: 'Normalized',
+          work_category: 'concrete_rebar',
+          normalization_confidence: 85,
+          ai_enhanced: false,
+        },
+      }
+
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      await namingService.normalizeLineItem(1, false)
+
+      expect(apiClient.post).toHaveBeenCalledWith('/line-items/1/normalize?use_ai=false')
     })
   })
 
   describe('bulkNormalize', () => {
-    it('should call correct endpoint for bulk normalization', async () => {
+    it('should call correct endpoint for bulk normalization with AI', async () => {
+      const mockResponse = {
+        data: {
+          message: 'Success',
+          total: 3,
+          success: 3,
+          failed: 0,
+          skipped: 0,
+          ai_enhanced_count: 2,
+          items: [],
+        },
+      }
+
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      const result = await namingService.bulkNormalize([1, 2, 3])
+
+      expect(apiClient.post).toHaveBeenCalledWith('/line-items/bulk-normalize?use_ai=true', {
+        line_item_ids: [1, 2, 3],
+      })
+      expect(result.success).toBe(3)
+      expect(result.ai_enhanced_count).toBe(2)
+    })
+
+    it('should call without AI when specified', async () => {
       const mockResponse = {
         data: {
           message: 'Success',
@@ -211,12 +258,11 @@ describe('namingService', () => {
 
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
 
-      const result = await namingService.bulkNormalize([1, 2, 3])
+      await namingService.bulkNormalize([1, 2, 3], false)
 
-      expect(apiClient.post).toHaveBeenCalledWith('/line-items/bulk-normalize', {
+      expect(apiClient.post).toHaveBeenCalledWith('/line-items/bulk-normalize?use_ai=false', {
         line_item_ids: [1, 2, 3],
       })
-      expect(result.success).toBe(3)
     })
   })
 

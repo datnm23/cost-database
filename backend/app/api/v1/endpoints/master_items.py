@@ -730,3 +730,49 @@ def export_line_items(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/line-items/{file_id}/export/original")
+def export_with_original_format(
+    file_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export line items with original Excel format preserved
+
+    This endpoint:
+    - Copies the original uploaded Excel file
+    - Adds a new "Processing Results" sheet with all line items
+    - Preserves all original formatting, comments, formulas, and notes
+    - Adds hyperlinks from results back to original rows
+
+    Returns the exported file for download.
+    """
+    import os
+    from datetime import datetime
+    from fastapi.responses import FileResponse
+
+    export_service = get_boq_export_service(db)
+
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"BOQ_Original_Format_{file_id}_{timestamp}.xlsx"
+    output_dir = "/tmp/exports"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+
+    try:
+        export_service.export_with_original_format(
+            file_id=file_id,
+            output_path=output_path
+        )
+
+        return FileResponse(
+            path=output_path,
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

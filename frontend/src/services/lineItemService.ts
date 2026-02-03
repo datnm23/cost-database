@@ -18,6 +18,11 @@ export interface LineItem {
   classification_method?: string
   needs_review?: boolean
   validation_issues?: string[]
+  matched_master_id?: number
+  match_similarity?: number
+  match_type?: 'exact' | 'fuzzy' | 'none'
+  original_sheet_name?: string
+  flags?: Array<{ flag_type: string; note?: string }>
 }
 
 export interface SECCode {
@@ -43,6 +48,9 @@ export interface BulkUpdateData {
   notes?: string
 }
 
+export type ConfidenceRange = 'low' | 'medium' | 'high'
+export type MatchTypeFilter = 'exact' | 'fuzzy' | 'none'
+
 export const lineItemService = {
   // Get line items (with filters)
   getLineItems: async (params: {
@@ -50,6 +58,8 @@ export const lineItemService = {
     project_id?: number
     sec_code?: string
     needs_review?: boolean
+    confidence_range?: ConfidenceRange
+    match_type?: MatchTypeFilter
     skip?: number
     limit?: number
   }) => {
@@ -100,6 +110,38 @@ export const lineItemService = {
   // Delete line item
   deleteLineItem: async (id: number) => {
     await apiClient.delete(`/line-items/${id}`)
+  },
+
+  // Create flag for line item
+  createFlag: async (lineItemId: number, flagType: string, note?: string) => {
+    const response = await apiClient.post('/line-items/flags', {
+      line_item_id: lineItemId,
+      flag_type: flagType,
+      note
+    })
+    return response.data
+  },
+
+  // Bulk create flags
+  bulkCreateFlags: async (lineItemIds: number[], flagType: string, note?: string) => {
+    const response = await apiClient.post('/line-items/flags/bulk', {
+      line_item_ids: lineItemIds,
+      flag_type: flagType,
+      note
+    })
+    return response.data
+  },
+
+  // Remove flag
+  removeFlag: async (lineItemId: number, flagType: string) => {
+    const response = await apiClient.delete(`/line-items/${lineItemId}/flags/${flagType}`)
+    return response.data
+  },
+
+  // Get flags for line item
+  getFlags: async (lineItemId: number) => {
+    const response = await apiClient.get(`/line-items/${lineItemId}/flags`)
+    return response.data
   },
 }
 

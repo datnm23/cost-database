@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   Table,
@@ -15,6 +15,7 @@ import {
   Tooltip,
   Badge,
   Drawer,
+  Dropdown,
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -27,6 +28,10 @@ import {
   SearchOutlined,
   SwapOutlined,
   ThunderboltOutlined,
+  FlagOutlined,
+  WarningOutlined,
+  QuestionCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -35,11 +40,36 @@ import {
   secCodeService,
   LineItem,
   SECCode,
+  ConfidenceRange,
 } from '@/services/lineItemService'
 import { namingService } from '@/services/namingService'
 
 const { Option } = Select
 const { TextArea } = Input
+
+// Flag type icons and colors
+const FLAG_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+  price_warning: { icon: <WarningOutlined />, color: 'orange', label: 'Price Warning' },
+  needs_verify: { icon: <QuestionCircleOutlined />, color: 'blue', label: 'Needs Verify' },
+  confirmed: { icon: <CheckCircleOutlined />, color: 'green', label: 'Confirmed' },
+  important: { icon: <ExclamationCircleOutlined />, color: 'red', label: 'Important' },
+  question: { icon: <QuestionCircleOutlined />, color: 'purple', label: 'Question' },
+}
+
+// Confidence score color helper
+const getConfidenceColor = (score: number | undefined): string => {
+  if (!score) return 'default'
+  if (score >= 95) return 'green'
+  if (score >= 80) return 'orange'
+  return 'red'
+}
+
+const getConfidenceLabel = (score: number | undefined): string => {
+  if (!score) return 'N/A'
+  if (score >= 95) return 'High'
+  if (score >= 80) return 'Medium'
+  return 'Low'
+}
 
 export default function LineItems() {
   const queryClient = useQueryClient()
@@ -57,8 +87,33 @@ export default function LineItems() {
     project_id: searchParams.get('project_id') ? parseInt(searchParams.get('project_id')!) : undefined,
     sec_code: undefined as string | undefined,
     needs_review: undefined as boolean | undefined,
+    confidence_range: undefined as ConfidenceRange | undefined,
     search: '',
   })
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+A to select all visible items
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+        e.preventDefault()
+        if (filteredLineItems && filteredLineItems.length > 0) {
+          setSelectedRowKeys(filteredLineItems.map(item => item.line_item_id))
+          message.info(`Selected ${filteredLineItems.length} items`)
+        }
+      }
+      // Escape to clear selection
+      if (e.key === 'Escape') {
+        if (selectedRowKeys.length > 0) {
+          setSelectedRowKeys([])
+          message.info('Selection cleared')
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filteredLineItems, selectedRowKeys])
 
   // Fetch line items
   const { data: lineItems, isLoading } = useQuery({
@@ -68,6 +123,7 @@ export default function LineItems() {
       project_id: filters.project_id,
       sec_code: filters.sec_code,
       needs_review: filters.needs_review,
+      confidence_range: filters.confidence_range,
       limit: 1000,
     }),
   })
@@ -152,6 +208,33 @@ export default function LineItems() {
     },
     onError: () => {
       message.error('Failed to normalize items')
+    },
+  })
+
+  // Add flag mutation
+  const addFlagMutation = useMutation({
+    mutationFn: ({ lineItemId, flagType, note }: { lineItemId: number; flagType: string; note?: string }) =>
+      lineItemService.createFlag(lineItemId, flagType, note),
+    onSuccess: () => {
+      message.success('Flag added successfully')
+      queryClient.invalidateQueries({ queryKey: ['lineItems'] })
+    },
+    onError: () => {
+      message.error('Failed to add flag')
+    },
+  })
+
+  // Bulk add flag mutation
+  const bulkAddFlagMutation = useMutation({
+    mutationFn: ({ flagType, note }: { flagType: string; note?: string }) =>
+      lineItemService.bulkCreateFlags(selectedRowKeys, flagType, note),
+    onSuccess: () => {
+      message.success('Flags added successfully')
+      queryClient.invalidateQueries({ queryKey: ['lineItems'] })
+      setSelectedRowKeys([])
+    },
+    onError: () => {
+      message.error('Failed to add flags')
     },
   })
 
@@ -292,17 +375,41 @@ export default function LineItems() {
       title: 'SEC Code',
       dataIndex: 'sec_code',
       key: 'sec_code',
-      width: 120,
+      width: 140,
       render: (code: string, record: LineItem) => (
         <Space direction="vertical" size="small">
           <Tag color={code ? 'blue' : 'default'}>{code || 'Not Classified'}</Tag>
-          {record.confidence_score && (
-            <span style={{ fontSize: 11, color: '#999' }}>
-              {record.confidence_score.toFixed(0)}% confidence
-            </span>
+          {record.confidence_score !== undefined && (
+            <Tag color={getConfidenceColor(record.confidence_score)}>
+              {record.confidence_score.toFixed(0)}% ({getConfidenceLabel(record.confidence_score)})
+            </Tag>
           )}
         </Space>
       ),
+    },
+    {
+      title: 'Flags',
+      dataIndex: 'flags',
+      key: 'flags',
+      width: 100,
+      render: (flags: Array<{ flag_type: string; note?: string }> | undefined, record: LineItem) => {
+        if (!flags || flags.length === 0) return '-'
+        return (
+          <Space size="small">
+            {flags.map((flag, idx) => {
+              const config = FLAG_CONFIG[flag.flag_type]
+              if (!config) return null
+              return (
+                <Tooltip key={idx} title={flag.note || config.label}>
+                  <Tag color={config.color} icon={config.icon}>
+                    {config.label.split(' ')[0]}
+                  </Tag>
+                </Tooltip>
+              )
+            })}
+          </Space>
+        )
+      },
     },
     {
       title: 'Status',
@@ -456,6 +563,18 @@ export default function LineItems() {
                 </Option>
               ))}
             </Select>
+            <Dropdown
+              menu={{
+                items: Object.entries(FLAG_CONFIG).map(([key, config]) => ({
+                  key,
+                  label: config.label,
+                  icon: config.icon,
+                  onClick: () => bulkAddFlagMutation.mutate({ flagType: key }),
+                })),
+              }}
+            >
+              <Button icon={<FlagOutlined />}>Add Flag</Button>
+            </Dropdown>
             <Button onClick={() => setSelectedRowKeys([])}>Clear Selection</Button>
           </Space>
         </Card>
@@ -550,6 +669,24 @@ export default function LineItems() {
               <Option key="verified" value={false}>Verified</Option>
             </Select>
           </Form.Item>
+          <Form.Item label="Confidence Level">
+            <Select
+              value={filters.confidence_range}
+              onChange={(val) => setFilters({ ...filters, confidence_range: val })}
+              allowClear
+              placeholder="All confidence levels"
+            >
+              <Option key="low" value="low">
+                <Tag color="red">Low (&lt;80%)</Tag> - Needs attention
+              </Option>
+              <Option key="medium" value="medium">
+                <Tag color="orange">Medium (80-95%)</Tag> - Review recommended
+              </Option>
+              <Option key="high" value="high">
+                <Tag color="green">High (≥95%)</Tag> - High confidence
+              </Option>
+            </Select>
+          </Form.Item>
           <Form.Item label="SEC Code">
             <Select
               value={filters.sec_code}
@@ -581,12 +718,20 @@ export default function LineItems() {
                 project_id: undefined,
                 sec_code: undefined,
                 needs_review: undefined,
+                confidence_range: undefined,
                 search: '',
               })
             }}
           >
             Clear All Filters
           </Button>
+          <div style={{ marginTop: 16, fontSize: 12, color: '#888' }}>
+            <strong>Keyboard Shortcuts:</strong>
+            <ul style={{ paddingLeft: 16, marginTop: 8 }}>
+              <li><code>Ctrl+A</code> - Select all visible items</li>
+              <li><code>Escape</code> - Clear selection</li>
+            </ul>
+          </div>
         </Form>
       </Drawer>
     </div>

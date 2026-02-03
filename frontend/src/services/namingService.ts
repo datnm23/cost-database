@@ -98,6 +98,8 @@ export interface NormalizeResult {
   normalized_description: string
   work_category: string
   normalization_confidence: number
+  ai_enhanced?: boolean
+  ai_corrections?: string[]
 }
 
 export interface BulkNormalizeResult {
@@ -106,11 +108,14 @@ export interface BulkNormalizeResult {
   success: number
   failed: number
   skipped: number
+  ai_enhanced_count?: number
   items: Array<{
     line_item_id: number
     normalized_description: string
     work_category: string
     confidence: number
+    ai_enhanced?: boolean
+    ai_corrections?: string[]
   }>
 }
 
@@ -176,17 +181,20 @@ export const namingService = {
     return response.data
   },
 
-  // Normalize a single line item
-  normalizeLineItem: async (lineItemId: number): Promise<NormalizeResult> => {
-    const response = await apiClient.post<NormalizeResult>(`/line-items/${lineItemId}/normalize`)
+  // Normalize a single line item (with optional AI enhancement)
+  normalizeLineItem: async (lineItemId: number, useAi = true): Promise<NormalizeResult> => {
+    const response = await apiClient.post<NormalizeResult>(
+      `/line-items/${lineItemId}/normalize?use_ai=${useAi}`
+    )
     return response.data
   },
 
-  // Bulk normalize line items
-  bulkNormalize: async (lineItemIds: number[]): Promise<BulkNormalizeResult> => {
-    const response = await apiClient.post<BulkNormalizeResult>('/line-items/bulk-normalize', {
-      line_item_ids: lineItemIds
-    })
+  // Bulk normalize line items (with optional AI enhancement)
+  bulkNormalize: async (lineItemIds: number[], useAi = true): Promise<BulkNormalizeResult> => {
+    const response = await apiClient.post<BulkNormalizeResult>(
+      `/line-items/bulk-normalize?use_ai=${useAi}`,
+      { line_item_ids: lineItemIds }
+    )
     return response.data
   },
 }
