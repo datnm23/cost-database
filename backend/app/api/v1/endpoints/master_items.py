@@ -10,6 +10,7 @@ from app.models.master_work_item import MasterWorkItem
 from app.services.master_data_service import MasterDataService
 from app.services.work_code_generator import WorkCodeGenerator
 from app.services.boq_processing_service import get_boq_processing_service
+from app.services.boq_export_service import get_boq_export_service
 
 router = APIRouter()
 
@@ -610,3 +611,122 @@ def match_single_description(
         "master_work_code": None,
         "suggested_matches": []
     }
+
+
+@router.get("/process-boq/{file_id}/export")
+def export_processing_result(
+    file_id: int,
+    include_master: bool = Query(True, description="Include Master database reference sheet"),
+    db: Session = Depends(get_db)
+):
+    """
+    Export BOQ processing result to Excel file
+
+    Returns:
+        - Summary sheet with statistics
+        - All processed items with match type
+        - Exact matches (ready to assign)
+        - Fuzzy matches (needs review)
+        - New items (to add to Master)
+        - Master database reference (optional)
+    """
+    import os
+    from datetime import datetime
+
+    export_service = get_boq_export_service(db)
+
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"BOQ_Processing_Result_{file_id}_{timestamp}.xlsx"
+    output_dir = "/tmp/exports"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+
+    try:
+        export_service.export_processing_result(
+            file_id=file_id,
+            output_path=output_path,
+            include_master_match=include_master
+        )
+
+        return {
+            "success": True,
+            "filename": filename,
+            "path": output_path,
+            "message": "Export completed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/process-boq/{file_id}/export/download")
+def download_export_file(
+    file_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export and download BOQ processing result as Excel file
+    """
+    import os
+    from datetime import datetime
+    from fastapi.responses import FileResponse
+
+    export_service = get_boq_export_service(db)
+
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"BOQ_Processing_Result_{file_id}_{timestamp}.xlsx"
+    output_dir = "/tmp/exports"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+
+    try:
+        export_service.export_processing_result(
+            file_id=file_id,
+            output_path=output_path,
+            include_master_match=True
+        )
+
+        return FileResponse(
+            path=output_path,
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/line-items/{file_id}/export")
+def export_line_items(
+    file_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export line items with SEC classification to Excel
+    """
+    import os
+    from datetime import datetime
+
+    export_service = get_boq_export_service(db)
+
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Line_Items_Classified_{file_id}_{timestamp}.xlsx"
+    output_dir = "/tmp/exports"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+
+    try:
+        export_service.export_line_items_with_classification(
+            file_id=file_id,
+            output_path=output_path
+        )
+
+        return {
+            "success": True,
+            "filename": filename,
+            "path": output_path,
+            "message": "Export completed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
