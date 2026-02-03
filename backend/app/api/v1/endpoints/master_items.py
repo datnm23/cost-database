@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.models.master_work_item import MasterWorkItem
 from app.services.master_data_service import MasterDataService
 from app.services.work_code_generator import WorkCodeGenerator
+from app.services.boq_processing_service import get_boq_processing_service
 
 router = APIRouter()
 
@@ -90,8 +91,40 @@ class BuildMasterResponse(BaseModel):
     total_items: int
     added: int
     updated: int
+    fuzzy_matched: Optional[int] = 0
     skipped: int
     by_sec_code: dict
+    needs_review: Optional[List[dict]] = None
+
+
+class BOQProcessRequest(BaseModel):
+    """Request for processing BOQ file with new flow"""
+    file_id: int
+    auto_add_to_master: bool = False
+
+
+class BOQProcessResponse(BaseModel):
+    """Response from BOQ processing"""
+    total_extracted: int
+    after_raw_dedup: int
+    after_normalize_dedup: int
+    exact_matches: int
+    fuzzy_matches: int
+    new_items: int
+    new_items_deduped: int
+    needs_review: int
+    ready_to_add: int
+
+
+class MatchItemResponse(BaseModel):
+    """Single match result"""
+    original_description: str
+    normalized_description: str
+    match_type: str
+    similarity_score: float
+    master_work_code: Optional[str] = None
+    needs_review: bool
+    suggested_matches: Optional[List[dict]] = None
 
 
 # ==============================================
@@ -406,4 +439,174 @@ def export_master_csv(db: Session = Depends(get_db)):
         "filename": filename,
         "path": output_path,
         "message": "CSV exported successfully"
+    }
+
+
+# ==============================================
+# BOQ Processing Flow Endpoints (New)
+# ==============================================
+
+@router.post("/process-boq", response_model=BOQProcessResponse)
+def process_boq_file(
+    data: BOQProcessRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Process BOQ file với flow mới:
+
+    1. Extract tất cả công tác
+    2. Lọc trùng tên gốc GIỐNG HỆT
+    3. Chuẩn hóa toàn bộ
+    4. So khớp với Master:
+       - Exact match (≥95%) → Gán mã có sẵn
+       - Fuzzy match (80-95%) → Review
+       - No match (<80%) → Công tác mới
+    5. Lọc trùng trong công tác mới
+    6. (Optional) Thêm vào Master với mã mới
+
+    Returns processing summary and statistics
+    """
+    service = get_boq_processing_service(db)
+
+    result = service.process_line_items(
+        file_id=data.file_id,
+        auto_add_to_master=data.auto_add_to_master
+    )
+
+    summary = service.get_match_summary(result)
+    return summary
+
+
+@router.get("/process-boq/{file_id}/details")
+def get_process_details(
+    file_id: int,
+    match_type: Optional[str] = Query(None, pattern="^(exact|fuzzy|new)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed processing results for a BOQ file
+
+    - **match_type**: Filter by match type (exact, fuzzy, new)
+    - **skip/limit**: Pagination
+    """
+    service = get_boq_processing_service(db)
+
+    result = service.process_line_items(file_id=file_id, auto_add_to_master=False)
+
+    items = result.items
+    if match_type:
+        items = [i for i in items if i.match_type == match_type]
+
+    # Paginate
+    total = len(items)
+    items = items[skip:skip + limit]
+
+    return {
+        "file_id": file_id,
+        "match_type_filter": match_type,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "items": [
+            {
+                "original_description": i.original_description,
+                "normalized_description": i.normalized_description,
+                "match_type": i.match_type,
+                "similarity_score": round(i.similarity_score * 100, 1),
+                "master_work_code": i.master_work_code,
+                "needs_review": i.needs_review,
+                "suggested_matches": i.suggested_matches[:3] if i.suggested_matches else []
+            }
+            for i in items
+        ]
+    }
+
+
+@router.post("/process-boq/{file_id}/add-new")
+def add_new_items_to_master(
+    file_id: int,
+    confirm: bool = Query(False, description="Confirm adding new items"),
+    db: Session = Depends(get_db)
+):
+    """
+    Add new items (không match với master) vào Master database
+
+    - Chỉ thêm sau khi user review và confirm
+    - Tự động tạo work code mới
+    """
+    if not confirm:
+        # Dry run - show what would be added
+        service = get_boq_processing_service(db)
+        result = service.process_line_items(file_id=file_id, auto_add_to_master=False)
+
+        new_items = [i for i in result.items if i.match_type == 'new']
+
+        return {
+            "action": "preview",
+            "message": f"Found {len(new_items)} new items to add",
+            "items": [
+                {
+                    "normalized_description": i.normalized_description,
+                    "suggested_sec_code": "UNCLASSIFIED"
+                }
+                for i in new_items[:50]  # Preview first 50
+            ],
+            "confirm_url": f"/api/v1/master_items/process-boq/{file_id}/add-new?confirm=true"
+        }
+
+    # Actually add items
+    service = get_boq_processing_service(db)
+    result = service.process_line_items(file_id=file_id, auto_add_to_master=True)
+
+    return {
+        "action": "completed",
+        "message": f"Added {result.new_items_deduped} new items to master",
+        "added": result.new_items_deduped
+    }
+
+
+@router.post("/match-description")
+def match_single_description(
+    description: str = Query(..., min_length=5),
+    db: Session = Depends(get_db)
+):
+    """
+    Match a single description against master database
+
+    Useful for testing or real-time matching during input
+    """
+    from app.services.description_normalizer import DescriptionNormalizer
+
+    normalizer = DescriptionNormalizer()
+    normalized = normalizer.normalize(description)
+
+    service = get_boq_processing_service(db)
+
+    # Use internal matching
+    result = service.process_boq_items(
+        file_id=0,
+        items=[{"description": description}],
+        auto_add_to_master=False
+    )
+
+    if result.items:
+        item = result.items[0]
+        return {
+            "original": description,
+            "normalized": normalized,
+            "match_type": item.match_type,
+            "similarity": round(item.similarity_score * 100, 1),
+            "master_work_code": item.master_work_code,
+            "suggested_matches": item.suggested_matches[:5] if item.suggested_matches else []
+        }
+
+    return {
+        "original": description,
+        "normalized": normalized,
+        "match_type": "new",
+        "similarity": 0,
+        "master_work_code": None,
+        "suggested_matches": []
     }

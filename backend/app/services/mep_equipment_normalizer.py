@@ -4,7 +4,7 @@ Handles normalization of MEP (Mechanical, Electrical, Plumbing) equipment:
 - Electrical panels (tủ điện)
 - Circuit breakers (MCCB, MCB)
 - Pipes (ống HDPE, PVC, PPR)
-- Cables (cáp điện)
+- Cables (cáp điện Cu/XLPE/PVC)
 - Lighting (đèn)
 """
 import re
@@ -26,56 +26,103 @@ class MEPEquipmentResult:
     is_material_only: bool  # True if just material/equipment name without work verb
 
 
-# Electrical equipment patterns
-ELECTRICAL_EQUIPMENT = {
-    'panel': {
-        'keywords': ['tủ điện', 'tủ gom', 'tủ hạ thế', 'tủ công tơ'],
-        'template': 'Cung cấp lắp đặt {type}',
+# Cable patterns - IMPROVED to preserve material info
+CABLE_PATTERNS = {
+    # Pattern: Cáp Cu/XLPE/PVC 4x300mm2 or Cáp đồng/XLPE/PVC 4X300
+    'xlpe': {
+        'pattern': r'[Cc]áp\s*(?:đồng|Cu)?[/\s]*(?:XLPE)[/\s]*(PVC|PE|DSTA)?\s*(\d+)[xX](\d+)\s*(?:mm2?)?',
+        'template': 'Cáp Cu/XLPE/{jacket} - {cores}x{size}mm2',
     },
-    'breaker': {
-        'patterns': [
-            r'(MCCB|MCB|RCCB|RCBO|ELCB)-?(\d+P)?-?(\d+A)?',
-            r'(MCCB|MCB)-(\d+)P-(\d+)A-(\d+)kA',
-        ],
-        'template': 'Cung cấp lắp đặt {type}',
+    # Pattern: Cáp đồng bọc PVC 1x6mm2
+    'pvc_single': {
+        'pattern': r'[Cc]áp\s*(?:đồng|Cu)?\s*(?:bọc\s*)?(PVC)\s*(\d+)[xX](\d+)\s*(?:mm2?)?',
+        'template': 'Cáp Cu/PVC - {cores}x{size}mm2',
+    },
+    # Pattern: Dây điện 1x2.5mm2
+    'wire': {
+        'pattern': r'[Dd]ây\s*(?:điện|đồng)?\s*(\d+)[xX](\d+(?:\.\d+)?)\s*(?:mm2?)?',
+        'template': 'Dây điện Cu - {cores}x{size}mm2',
+    },
+    # Pattern: Cáp ngầm trung thế
+    'mv_cable': {
+        'pattern': r'[Cc]áp\s*ngầm\s*(?:trung\s*thế)?\s*(\d+)[xX](\d+)',
+        'template': 'Cáp ngầm trung thế - {cores}x{size}mm2',
+    },
+}
+
+# Electrical panel patterns
+PANEL_PATTERNS = {
+    'distribution': {
+        'keywords': ['tủ điện', 'tủ phân phối', 'tủ hạ thế'],
+        'preserve_specs': True,  # Keep original specs
     },
     'meter': {
-        'keywords': ['công tơ', 'đồng hồ điện'],
-        'patterns': [r'công tơ\s*(\d+P)?'],
-        'template': 'Cung cấp lắp đặt {type}',
+        'keywords': ['tủ gom', 'tủ công tơ', 'tủ đo đếm'],
+        'preserve_specs': True,
     },
-    'cable': {
-        'keywords': ['cáp điện', 'cáp ngầm', 'dây điện'],
-        'patterns': [r'cáp\s*(CU|Cu|AL|Al)?.*?(\d+x\d+)'],
-        'template': 'Lắp đặt {type}',
-    },
-    'lighting': {
-        'keywords': ['đèn chiếu sáng', 'đèn đường', 'đèn led', 'đèn tín hiệu'],
-        'template': 'Lắp đặt {type}',
+    'control': {
+        'keywords': ['tủ điều khiển', 'tủ ats', 'tủ mts'],
+        'preserve_specs': True,
     },
 }
 
 # Pipe patterns (HDPE, PVC, PPR, steel)
 PIPE_PATTERNS = {
     'hdpe': {
-        'pattern': r'ống\s*HDPE\s*D?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống HDPE - D{diameter} - {pressure}',
+        'pattern': r'[Ốố]ng\s*HDPE\s*D?N?(\d+)\s*(PN\d+)?',
+        'template': 'Lắp đặt ống HDPE - D{diameter}{pressure}',
     },
     'pvc': {
-        'pattern': r'ống\s*(?:u)?PVC\s*D?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống PVC - D{diameter} - {pressure}',
+        'pattern': r'[Ốố]ng\s*(?:u)?PVC\s*D?N?(\d+)\s*(PN\d+)?',
+        'template': 'Lắp đặt ống PVC - D{diameter}{pressure}',
     },
     'ppr': {
-        'pattern': r'ống\s*PPR\s*D?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống PPR - D{diameter} - {pressure}',
+        'pattern': r'[Ốố]ng\s*PPR\s*D?N?(\d+)\s*(PN\d+)?',
+        'template': 'Lắp đặt ống PPR - D{diameter}{pressure}',
     },
     'steel': {
-        'pattern': r'ống\s*thép\s*(?:đen|mạ)?\s*DN?(\d+)',
+        'pattern': r'[Ốố]ng\s*thép\s*(?:đen|mạ\s*kẽm)?\s*D?N?(\d+)',
         'template': 'Lắp đặt ống thép - DN{diameter}',
     },
     'ttk': {
-        'pattern': r'ống\s*TTK\s*DN?(\d+)',
+        'pattern': r'[Ốố]ng\s*TTK\s*D?N?(\d+)',
         'template': 'Lắp đặt ống TTK - DN{diameter}',
+    },
+    'conduit': {
+        'pattern': r'[Ốố]ng\s*(?:luồn\s*dây|gen)\s*D?(\d+)',
+        'template': 'Lắp đặt ống luồn dây - D{diameter}',
+    },
+}
+
+# Breaker patterns
+BREAKER_PATTERNS = {
+    'mccb': {
+        'pattern': r'(MCCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?\s*[-]?\s*(\d+)?[kK]?[Aa]?',
+        'template': 'Cung cấp lắp đặt MCCB - {poles}P - {amps}A{ka}',
+    },
+    'mcb': {
+        'pattern': r'(MCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?',
+        'template': 'Cung cấp lắp đặt MCB - {poles}P - {amps}A',
+    },
+    'rccb': {
+        'pattern': r'(RCCB|RCBO|ELCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?',
+        'template': 'Cung cấp lắp đặt {type} - {poles}P - {amps}A',
+    },
+}
+
+# Lighting patterns
+LIGHTING_PATTERNS = {
+    'street_light': {
+        'pattern': r'[Đđ]èn\s*(?:chiếu\s*sáng|đường)\s*(?:LED)?\s*(\d+)[Ww]?',
+        'template': 'Lắp đặt đèn chiếu sáng LED - {wattage}W',
+    },
+    'signal_light': {
+        'pattern': r'[Đđ]èn\s*tín\s*hiệu\s*(?:báo\s*pha)?',
+        'template': 'Lắp đặt đèn tín hiệu giao thông',
+    },
+    'led_panel': {
+        'pattern': r'[Đđ]èn\s*(?:LED\s*)?(?:panel|âm\s*trần)\s*(\d+)[Ww]?',
+        'template': 'Lắp đặt đèn LED panel - {wattage}W',
     },
 }
 
@@ -92,16 +139,24 @@ class MEPEquipmentNormalizer:
 
         # Electrical keywords
         elec_keywords = [
-            'tủ điện', 'tủ gom', 'mccb', 'mcb', 'rccb', 'công tơ',
-            'cáp điện', 'dây điện', 'đèn chiếu sáng', 'đèn tín hiệu',
+            'tủ điện', 'tủ gom', 'tủ hạ thế', 'tủ công tơ', 'tủ phân phối',
+            'mccb', 'mcb', 'rccb', 'rcbo', 'elcb', 'công tơ',
+            'cáp điện', 'cáp cu', 'cáp đồng', 'dây điện', 'xlpe',
+            'đèn chiếu sáng', 'đèn tín hiệu', 'đèn led', 'đèn đường',
             'cầu chì', 'thanh cái', 'aptomat',
+            'ống luồn', 'ống gen',
         ]
 
         # Pipe keywords
         pipe_keywords = [
             'ống hdpe', 'ống pvc', 'ống ppr', 'ống thép',
-            'ống ttk', 'ống nhựa', 'ống nước',
+            'ống ttk', 'ống nhựa', 'ống nước', 'ống thoát',
         ]
+
+        # Cable pattern check
+        cable_pattern = r'[Cc]áp.*?(\d+)[xX](\d+)'
+        if re.search(cable_pattern, text):
+            return True
 
         all_keywords = elec_keywords + pipe_keywords
         return any(kw in text_lower for kw in all_keywords)
@@ -136,38 +191,45 @@ class MEPEquipmentNormalizer:
     def normalize(self, description: str) -> MEPEquipmentResult:
         """
         Normalize MEP equipment description
-
-        Args:
-            description: Original description
-
-        Returns:
-            MEPEquipmentResult with normalized description and metadata
+        IMPROVED: Preserves important technical specs like Cu/XLPE/PVC
         """
         text_lower = description.lower().strip()
         is_material = self.is_material_only(description)
 
-        # Try pipe patterns first
+        # Try cable patterns first (highest priority for electrical)
+        for cable_type, config in CABLE_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_cable(description, cable_type, match, config, is_material)
+
+        # Try breaker patterns
+        for breaker_type, config in BREAKER_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_breaker(description, breaker_type, match, config, is_material)
+
+        # Try pipe patterns
         for pipe_type, config in PIPE_PATTERNS.items():
             match = re.search(config['pattern'], description, re.IGNORECASE)
             if match:
                 return self._normalize_pipe(description, pipe_type, match, config, is_material)
 
-        # Try electrical equipment
-        for equip_type, config in ELECTRICAL_EQUIPMENT.items():
-            if 'keywords' in config:
-                for kw in config['keywords']:
-                    if kw in text_lower:
-                        return self._normalize_electrical(description, equip_type, config, is_material)
-            if 'patterns' in config:
-                for pattern in config['patterns']:
-                    match = re.search(pattern, description, re.IGNORECASE)
-                    if match:
-                        return self._normalize_electrical_pattern(description, equip_type, match, config, is_material)
+        # Try lighting patterns
+        for light_type, config in LIGHTING_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_lighting(description, light_type, match, config, is_material)
 
-        # Fallback
-        normalized = description
+        # Try panel keywords
+        for panel_type, config in PANEL_PATTERNS.items():
+            for kw in config['keywords']:
+                if kw in text_lower:
+                    return self._normalize_panel(description, panel_type, config, is_material)
+
+        # Fallback: preserve original with verb prefix if needed
+        normalized = description.strip()
         if is_material and not any(description.lower().startswith(v) for v in ['lắp đặt', 'cung cấp', 'thi công']):
-            normalized = f"Cung cấp lắp đặt {description}"
+            normalized = f"Cung cấp lắp đặt {description.strip()}"
 
         return MEPEquipmentResult(
             original=description,
@@ -175,6 +237,104 @@ class MEPEquipmentNormalizer:
             equipment_type='unknown',
             specs={},
             confidence=0.5,
+            is_material_only=is_material
+        )
+
+    def _normalize_cable(
+        self,
+        description: str,
+        cable_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize cable description - PRESERVES Cu/XLPE/PVC info"""
+        specs = {}
+
+        if cable_type == 'xlpe':
+            # Groups: jacket(PVC/PE), cores, size
+            jacket = match.group(1) or 'PVC'
+            cores = match.group(2)
+            size = match.group(3)
+            specs = {'jacket': jacket, 'cores': cores, 'size': size}
+            normalized = f"Cáp Cu/XLPE/{jacket} - {cores}x{size}mm2"
+
+        elif cable_type == 'pvc_single':
+            cores = match.group(2)
+            size = match.group(3)
+            specs = {'cores': cores, 'size': size}
+            normalized = f"Cáp Cu/PVC - {cores}x{size}mm2"
+
+        elif cable_type == 'wire':
+            cores = match.group(1)
+            size = match.group(2)
+            specs = {'cores': cores, 'size': size}
+            normalized = f"Dây điện Cu - {cores}x{size}mm2"
+
+        elif cable_type == 'mv_cable':
+            cores = match.group(1)
+            size = match.group(2)
+            specs = {'cores': cores, 'size': size}
+            normalized = f"Cáp ngầm trung thế - {cores}x{size}mm2"
+
+        else:
+            normalized = description
+
+        # Add verb if material only
+        if is_material:
+            normalized = f"Lắp đặt {normalized}"
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'cable_{cable_type}',
+            specs=specs,
+            confidence=0.9,
+            is_material_only=is_material
+        )
+
+    def _normalize_breaker(
+        self,
+        description: str,
+        breaker_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize circuit breaker description"""
+        specs = {}
+
+        if breaker_type == 'mccb':
+            breaker = match.group(1)
+            poles = match.group(2) or '3'
+            amps = match.group(3)
+            ka = match.group(4)
+            specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
+            ka_str = f" - {ka}kA" if ka else ""
+            normalized = f"Cung cấp lắp đặt MCCB - {poles}P - {amps}A{ka_str}"
+
+        elif breaker_type == 'mcb':
+            poles = match.group(2)
+            amps = match.group(3)
+            specs = {'poles': poles, 'amps': amps}
+            normalized = f"Cung cấp lắp đặt MCB - {poles}P - {amps}A"
+
+        elif breaker_type == 'rccb':
+            breaker = match.group(1)
+            poles = match.group(2)
+            amps = match.group(3)
+            specs = {'type': breaker, 'poles': poles, 'amps': amps}
+            normalized = f"Cung cấp lắp đặt {breaker} - {poles}P - {amps}A"
+
+        else:
+            normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'breaker_{breaker_type}',
+            specs=specs,
+            confidence=0.9,
             is_material_only=is_material
         )
 
@@ -194,20 +354,23 @@ class MEPEquipmentNormalizer:
         if diameter:
             specs['diameter'] = diameter
 
-        # Extract pressure
+        # Extract pressure (for HDPE, PVC, PPR)
         pressure = None
         if match.lastindex >= 2 and match.group(2):
             pressure = match.group(2).upper()
             specs['pressure'] = pressure
 
-        # Build normalized string
-        parts = [f"Lắp đặt ống {pipe_type.upper()}"]
-        if diameter:
-            parts.append(f"D{diameter}")
-        if pressure:
-            parts.append(pressure)
-
-        normalized = ' - '.join(parts)
+        # Build normalized string based on pipe type
+        pipe_name = pipe_type.upper()
+        if pipe_type == 'steel':
+            normalized = f"Lắp đặt ống thép - DN{diameter}"
+        elif pipe_type == 'conduit':
+            normalized = f"Lắp đặt ống luồn dây - D{diameter}"
+        else:
+            parts = [f"Lắp đặt ống {pipe_name}", f"D{diameter}"]
+            if pressure:
+                parts.append(pressure)
+            normalized = ' - '.join(parts)
 
         return MEPEquipmentResult(
             original=description,
@@ -218,20 +381,63 @@ class MEPEquipmentNormalizer:
             is_material_only=is_material
         )
 
-    def _normalize_electrical(
+    def _normalize_lighting(
         self,
         description: str,
-        equip_type: str,
+        light_type: str,
+        match: re.Match,
         config: dict,
         is_material: bool
     ) -> MEPEquipmentResult:
-        """Normalize electrical equipment by keyword"""
+        """Normalize lighting equipment description"""
         specs = {}
 
-        # Clean up description
+        if light_type == 'signal_light':
+            normalized = "Lắp đặt đèn tín hiệu giao thông"
+        else:
+            wattage = match.group(1) if match.lastindex >= 1 else None
+            if wattage:
+                specs['wattage'] = wattage
+
+            if light_type == 'street_light':
+                normalized = f"Lắp đặt đèn chiếu sáng LED - {wattage}W" if wattage else "Lắp đặt đèn chiếu sáng LED"
+            elif light_type == 'led_panel':
+                normalized = f"Lắp đặt đèn LED panel - {wattage}W" if wattage else "Lắp đặt đèn LED panel"
+            else:
+                normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'lighting_{light_type}',
+            specs=specs,
+            confidence=0.85,
+            is_material_only=is_material
+        )
+
+    def _normalize_panel(
+        self,
+        description: str,
+        panel_type: str,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize electrical panel - PRESERVES original specs"""
+        specs = {}
+
+        # For panels, preserve the original description but clean it up
         desc_clean = description.strip()
 
-        # Add verb if material only
+        # Extract key specs if present
+        voltage_match = re.search(r'(\d+)\s*[Vv]', description)
+        if voltage_match:
+            specs['voltage'] = voltage_match.group(1)
+
+        phase_match = re.search(r'(\d+)\s*pha', description, re.IGNORECASE)
+        if phase_match:
+            specs['phase'] = phase_match.group(1)
+
+        # Add verb if material only, but keep original specs
         if is_material:
             normalized = f"Cung cấp lắp đặt {desc_clean}"
         else:
@@ -240,39 +446,9 @@ class MEPEquipmentNormalizer:
         return MEPEquipmentResult(
             original=description,
             normalized=normalized,
-            equipment_type=equip_type,
+            equipment_type=f'panel_{panel_type}',
             specs=specs,
             confidence=0.8,
-            is_material_only=is_material
-        )
-
-    def _normalize_electrical_pattern(
-        self,
-        description: str,
-        equip_type: str,
-        match: re.Match,
-        config: dict,
-        is_material: bool
-    ) -> MEPEquipmentResult:
-        """Normalize electrical equipment by pattern match"""
-        specs = {}
-
-        # Extract specs from pattern
-        matched_text = match.group(0)
-        specs['model'] = matched_text
-
-        # Build normalized string
-        if is_material:
-            normalized = f"Cung cấp lắp đặt {matched_text}"
-        else:
-            normalized = description
-
-        return MEPEquipmentResult(
-            original=description,
-            normalized=normalized,
-            equipment_type=equip_type,
-            specs=specs,
-            confidence=0.85,
             is_material_only=is_material
         )
 

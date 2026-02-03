@@ -49,10 +49,17 @@ class DescriptionNormalizer:
         FINISHING = "finishing"                      # Hoàn thiện
         STEEL_MEP = "steel_mep"                      # Kết cấu thép & MEP
         ROAD_INFRASTRUCTURE = "road_infrastructure"  # Hạ tầng đường
+        LANDSCAPING = "landscaping"                  # Cây xanh, cảnh quan
         GENERAL = "general"                          # Chung
 
     # Keywords để phân loại nhóm công tác
     CATEGORY_KEYWORDS = {
+        WorkCategory.LANDSCAPING: [
+            'cây', 'cây xanh', 'trồng cây', 'trồng cỏ', 'cỏ', 'thảm cỏ',
+            'cây bàng', 'cây phượng', 'cây sấu', 'cây dừa', 'cây cọ',
+            'bồn hoa', 'hoa', 'tiểu cảnh', 'đất màu', 'phân bón',
+            'tưới cây', 'hệ thống tưới', 'chăm sóc cây',
+        ],
         WorkCategory.ROAD_INFRASTRUCTURE: [
             'biển báo', 'cọc tiêu', 'cọc km', 'lan can',
             'vạch sơn', 'vạch kẻ', 'sơn vạch',
@@ -60,7 +67,6 @@ class DescriptionNormalizer:
             'cột đèn', 'đèn chiếu sáng',
             'rải thảm', 'btn c', 'bê tông nhựa',
             'lớp thấm bám', 'tưới nhựa', 'nhựa pha dầu',
-            'trồng cây', 'trồng cỏ', 'cây xanh', 'đất màu',
             'tôn sóng', 'hộ lan',
         ],
         WorkCategory.EARTHWORKS_PILING: [
@@ -266,12 +272,21 @@ class DescriptionNormalizer:
         """
         text_lower = text.lower()
 
+        # Check for landscaping first (trees, grass)
+        landscaping_indicators = [
+            'cây bàng', 'cây phượng', 'cây sấu', 'cây dừa', 'cây cọ',
+            'cây xanh', 'trồng cây', 'trồng cỏ', 'thảm cỏ', 'cỏ lạc',
+            'bồn hoa', 'tiểu cảnh', 'chăm sóc cây',
+        ]
+        for indicator in landscaping_indicators:
+            if indicator in text_lower:
+                return self.WorkCategory.LANDSCAPING
+
         # Strong indicators for road infrastructure (highest priority)
         road_indicators = [
             'biển báo', 'cọc tiêu', 'cọc km', 'bản quan trắc', 'quan trắc',
             'vạch sơn', 'sơn vạch', 'vạch kẻ', 'lan can', 'hộ lan', 'tôn sóng',
             'rải thảm', 'lớp thấm bám', 'nhựa pha dầu', 'btn c',
-            'trồng cây', 'trồng cỏ', 'cây xanh', 'đất màu',
         ]
         for indicator in road_indicators:
             if indicator in text_lower:
@@ -285,6 +300,7 @@ class DescriptionNormalizer:
 
         # Count matches for each category
         scores = {category: 0 for category in [
+            self.WorkCategory.LANDSCAPING,
             self.WorkCategory.ROAD_INFRASTRUCTURE,
             self.WorkCategory.EARTHWORKS_PILING,
             self.WorkCategory.CONCRETE_REBAR,
@@ -732,7 +748,14 @@ class DescriptionNormalizer:
         specs = components.get('specs', [])
         details = components.get('details', [])
 
-        if category == self.WorkCategory.ROAD_INFRASTRUCTURE:
+        if category == self.WorkCategory.LANDSCAPING:
+            # Template: [Trồng/Cung cấp] [loại cây/cỏ] - [kích thước/specs] - [details]
+            # e.g., "Trồng cây Bàng Đài Loan - H3-4m - gốc Ø8-10cm"
+            # e.g., "Trồng cỏ lạc"
+            # e.g., "Rải đất màu - dày 20cm"
+            return self._build_landscaping_syntax(components)
+
+        elif category == self.WorkCategory.ROAD_INFRASTRUCTURE:
             # Template varies by work type:
             # Traffic signs: [Lắp đặt] [biển báo] [type] - [size]
             # Monitoring: [Lắp đặt] [bản quan trắc] [type]
@@ -1050,6 +1073,32 @@ class DescriptionNormalizer:
 
         return result.strip()
 
+    def _build_landscaping_syntax(self, components: Dict) -> str:
+        """
+        Build normalized description for landscaping items (trees, grass, etc.)
+        Template: [Trồng/Cung cấp] [loại cây/cỏ] - [kích thước] - [chi tiết]
+
+        Examples:
+            "Cây Bàng Đài Loan, H3-4m, gốc Ø8-10cm" → "Trồng cây Bàng Đài Loan - H3-4m - gốc Ø8-10cm"
+            "Cây cỏ lạc" → "Trồng cỏ lạc"
+            "Rải đất màu dày 20cm" → "Rải đất màu - dày 20cm"
+        """
+        # For landscaping, we want to preserve the original description but structure it
+        # This is different from other categories where we decompose and rebuild
+        return ""  # Return empty to trigger fallback to preserve_original
+
+    def _preserve_original_with_structure(self, description: str) -> str:
+        """
+        For complex items (MEP, landscaping, bilingual), preserve original but clean up
+        """
+        # Remove Chinese characters if present
+        text = re.sub(r'[\u4e00-\u9fff]+', '', description)
+        # Remove newlines
+        text = text.replace('\n', ' ')
+        # Clean up extra spaces
+        text = ' '.join(text.split())
+        return text.strip()
+
     def normalize(self, description: str) -> str:
         """
         Main normalization function
@@ -1073,20 +1122,99 @@ class DescriptionNormalizer:
         if not description or description.strip() == '':
             return ""
 
+        # Step 0: Check for bilingual text (Chinese + Vietnamese) - preserve cleaned
+        if re.search(r'[\u4e00-\u9fff]', description):
+            return self._preserve_original_with_structure(description)
+
         # Step 1: Identify work category
         category = self.identify_work_category(description)
 
-        # Step 2: Parse components
+        # Step 2: For landscaping, preserve more of the original
+        if category == self.WorkCategory.LANDSCAPING:
+            return self._normalize_landscaping(description)
+
+        # Step 3: Parse components
         components = self.parse_description(description)
 
-        # Step 3: Build natural syntax with category-specific template
+        # Step 4: Build natural syntax with category-specific template
         normalized = self.build_natural_syntax(components, category=category)
 
-        # Step 4: Validate length (40-80 chars recommended)
+        # Step 5: If normalization resulted in empty or too short, preserve original
+        if not normalized or len(normalized) < 5:
+            normalized = self._preserve_original_with_structure(description)
+
+        # Step 6: Validate length (40-80 chars recommended)
         if len(normalized) > 100:
             logger.warning(f"Description too long ({len(normalized)} chars): {normalized[:50]}...")
 
         return normalized
+
+    def _normalize_landscaping(self, description: str) -> str:
+        """
+        Normalize landscaping items (trees, grass, plants)
+        Preserves species name and key dimensions
+        """
+        text = description.strip()
+
+        # Extract tree/plant name
+        tree_patterns = [
+            r'[Cc]ây\s+([A-ZÀ-Ỹ][a-zà-ỹ]+(?:\s+[A-ZÀ-Ỹ][a-zà-ỹ]+)*)',  # Cây Bàng Đài Loan
+            r'[Cc]ỏ\s+([a-zà-ỹ]+)',  # Cỏ lạc
+        ]
+
+        plant_name = None
+        for pattern in tree_patterns:
+            match = re.search(pattern, text)
+            if match:
+                plant_name = match.group(0)
+                break
+
+        # Extract height (H3-4m, cao 3m, chiều cao 3~4m)
+        height = None
+        height_patterns = [
+            r'[Hh][\s=]*(\d+(?:[~-]\d+)?)\s*m',
+            r'(?:chiều\s+)?cao\s*(\d+(?:[~-]\d+)?)\s*m',
+        ]
+        for pattern in height_patterns:
+            match = re.search(pattern, text)
+            if match:
+                height = f"H{match.group(1)}m"
+                break
+
+        # Extract trunk diameter (gốc Ø8-10cm, đường kính gốc 8-10cm)
+        diameter = None
+        diameter_patterns = [
+            r'(?:gốc|đường\s*kính\s*gốc)\s*[ØD]?\s*(\d+(?:-\d+)?)\s*cm',
+            r'(?:gốc|cơ\s*bản)\s*(\d+(?:-\d+)?)\s*cm',
+        ]
+        for pattern in diameter_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                diameter = f"gốc Ø{match.group(1)}cm"
+                break
+
+        # Build normalized string
+        if plant_name:
+            parts = [f"Trồng {plant_name}"]
+            if height:
+                parts.append(height)
+            if diameter:
+                parts.append(diameter)
+            return ' - '.join(parts)
+
+        # Fallback: check for đất màu
+        if 'đất màu' in text.lower():
+            thickness = None
+            match = re.search(r'dày\s*(\d+)\s*(cm|mm)?', text, re.IGNORECASE)
+            if match:
+                unit = match.group(2) or 'cm'
+                thickness = f"dày {match.group(1)}{unit}"
+            if thickness:
+                return f"Rải đất màu - {thickness}"
+            return "Rải đất màu"
+
+        # Generic fallback
+        return self._preserve_original_with_structure(text)
 
     def normalize_batch(self, descriptions: List[str]) -> List[Dict[str, str]]:
         """

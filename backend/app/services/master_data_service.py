@@ -4,10 +4,11 @@ Service để xây dựng Master Database từ Line Items
 import re
 import unicodedata
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from collections import defaultdict
+from difflib import SequenceMatcher
 import logging
 
 from app.models.line_item import LineItem
@@ -17,6 +18,10 @@ from app.services.work_code_generator import WorkCodeGenerator
 from app.services.description_normalizer import DescriptionNormalizer
 
 logger = logging.getLogger(__name__)
+
+# Matching thresholds
+EXACT_MATCH_THRESHOLD = 0.95  # ≥95% → Tự động gán mã
+FUZZY_MATCH_THRESHOLD = 0.80  # 80-95% → Review
 
 
 class MasterDataService:
@@ -122,8 +127,10 @@ class MasterDataService:
             'total_items': len(items),
             'added': 0,
             'updated': 0,
+            'fuzzy_matched': 0,
             'skipped': 0,
-            'by_sec_code': defaultdict(int)
+            'by_sec_code': defaultdict(int),
+            'needs_review': []
         }
 
         for idx, item in enumerate(items, 1):
@@ -134,17 +141,27 @@ class MasterDataService:
                 # Normalize cho indexing (lowercase)
                 desc_normalized = self.normalize_description(item.description)
 
-                # Check if similar item exists
-                existing = self._find_similar_master(
+                # Check if similar item exists (now returns tuple)
+                existing, similarity, match_type = self._find_similar_master(
                     description_normalized=desc_normalized,
                     sec_code=item.sec_code,
                     unit=item.unit
                 )
 
-                if existing:
-                    # Update existing
+                if match_type == 'exact':
+                    # Update existing (high confidence match)
                     self._update_master_item(existing, item)
                     stats['updated'] += 1
+                elif match_type == 'fuzzy':
+                    # Fuzzy match - update but flag for review
+                    self._update_master_item(existing, item)
+                    stats['fuzzy_matched'] += 1
+                    stats['needs_review'].append({
+                        'line_item_id': item.line_item_id,
+                        'description': item.description,
+                        'matched_master': existing.work_code,
+                        'similarity': round(similarity * 100, 1)
+                    })
                 else:
                     # Create new master item
                     work_code = self.code_generator.generate_work_code(
@@ -186,11 +203,15 @@ class MasterDataService:
         sec_code: str,
         unit: str,
         similarity_threshold: float = 0.9
-    ) -> Optional[MasterWorkItem]:
+    ) -> Tuple[Optional[MasterWorkItem], float, str]:
         """
-        Tìm master item tương tự
+        Tìm master item tương tự với fuzzy matching
+
+        Returns:
+            (master_item, similarity_score, match_type)
+            match_type: 'exact', 'fuzzy', 'none'
         """
-        # Exact match first
+        # Exact match first (fastest)
         exact = self.db.query(MasterWorkItem).filter(
             MasterWorkItem.description_normalized == description_normalized,
             MasterWorkItem.sec_code == sec_code,
@@ -198,11 +219,73 @@ class MasterDataService:
         ).first()
 
         if exact:
-            return exact
+            return exact, 1.0, 'exact'
 
-        # TODO: Implement fuzzy matching with similarity score
-        # For now, return None if no exact match
-        return None
+        # Fuzzy matching
+        # Load candidates with same SEC code for efficiency
+        candidates = self.db.query(MasterWorkItem).filter(
+            MasterWorkItem.is_active == True
+        )
+        if sec_code:
+            candidates = candidates.filter(MasterWorkItem.sec_code == sec_code)
+
+        candidates = candidates.all()
+
+        if not candidates:
+            return None, 0.0, 'none'
+
+        best_match = None
+        best_score = 0.0
+
+        for candidate in candidates:
+            if not candidate.description_normalized:
+                continue
+
+            score = self._calculate_similarity(
+                description_normalized,
+                candidate.description_normalized
+            )
+
+            # Bonus for matching unit
+            if unit and candidate.unit_standard == unit:
+                score = min(1.0, score + 0.05)
+
+            if score > best_score:
+                best_score = score
+                best_match = candidate
+
+        if best_score >= EXACT_MATCH_THRESHOLD:
+            return best_match, best_score, 'exact'
+        elif best_score >= FUZZY_MATCH_THRESHOLD:
+            return best_match, best_score, 'fuzzy'
+        else:
+            return None, best_score, 'none'
+
+    def _calculate_similarity(self, s1: str, s2: str) -> float:
+        """
+        Calculate similarity between two normalized descriptions
+        Combines SequenceMatcher with token-based matching
+        """
+        if not s1 or not s2:
+            return 0.0
+
+        if s1 == s2:
+            return 1.0
+
+        # SequenceMatcher ratio
+        ratio = SequenceMatcher(None, s1, s2).ratio()
+
+        # Token-based matching (important for construction terms)
+        tokens1 = set(s1.split())
+        tokens2 = set(s2.split())
+
+        if tokens1 and tokens2:
+            common = tokens1 & tokens2
+            token_ratio = len(common) / max(len(tokens1), len(tokens2))
+            # Weighted: 60% sequence, 40% token overlap
+            ratio = 0.6 * ratio + 0.4 * token_ratio
+
+        return ratio
 
     def _update_master_item(self, master: MasterWorkItem, item: LineItem):
         """
