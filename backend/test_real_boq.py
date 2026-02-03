@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.services.description_normalizer import DescriptionNormalizer
 from app.services.ai_normalizer import get_ai_normalizer
 from app.services.traffic_equipment_normalizer import get_traffic_normalizer
+from app.services.mep_equipment_normalizer import get_mep_normalizer
 from app.services.file_context_analyzer import get_file_context_analyzer
 from app.core.config import settings
 
@@ -64,7 +65,7 @@ def test_road_infrastructure_detection():
         print(f"{status} '{desc[:50]}...' -> {category} (expected: {expected})")
 
 
-def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 30):
+def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 0):
     """Test normalization with real Excel BOQ file"""
 
     print("=" * 120)
@@ -125,7 +126,7 @@ def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 30):
                     # Skip Roman numeral sections
                     if not val.startswith(('I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.')):
                         descriptions.append((i, val))
-                        if len(descriptions) >= max_rows:
+                        if max_rows > 0 and len(descriptions) >= max_rows:
                             break
 
     print(f"\nExtracted {len(descriptions)} work item descriptions for testing\n")
@@ -133,6 +134,7 @@ def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 30):
     # Initialize normalizers
     rule_normalizer = DescriptionNormalizer()
     traffic_normalizer = get_traffic_normalizer()
+    mep_normalizer = get_mep_normalizer()
 
     try:
         ai_normalizer = get_ai_normalizer()
@@ -166,6 +168,11 @@ def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 30):
             result = traffic_normalizer.normalize(desc)
             normalized = result.normalized
             category = 'road_infrastructure'
+        # Check if MEP equipment
+        elif mep_normalizer.is_mep_equipment(desc):
+            result = mep_normalizer.normalize(desc)
+            normalized = result.normalized
+            category = 'steel_mep'
         else:
             normalized = rule_normalizer.normalize(desc)
             category = rule_normalizer.identify_work_category(desc)
@@ -204,6 +211,14 @@ def test_with_excel(file_path: str, sheet_name: str = None, max_rows: int = 30):
             print(f"Normalized: {result.normalized}")
             print(f"Category:   road_infrastructure (traffic equipment: {result.equipment_type})")
             print(f"Confidence: {result.confidence * 100:.1f}%")
+        # Check MEP equipment
+        elif mep_normalizer.is_mep_equipment(desc):
+            result = mep_normalizer.normalize(desc)
+            print(f"Normalized: {result.normalized}")
+            print(f"Category:   steel_mep (MEP equipment: {result.equipment_type})")
+            print(f"Confidence: {result.confidence * 100:.1f}%")
+            if result.specs:
+                print(f"Specs:      {result.specs}")
         else:
             normalized = rule_normalizer.normalize(desc)
             category = rule_normalizer.identify_work_category(desc)
@@ -229,7 +244,11 @@ if __name__ == "__main__":
 
     if os.path.exists(file_path):
         # Test with construction (XD) sheet first
-        test_with_excel(file_path, sheet_name="BoQ XD", max_rows=40)
+        test_with_excel(file_path, sheet_name="BoQ XD", max_rows=0)  # 0 = no limit
+
+        # Test with M&E sheet
+        print("\n\n")
+        test_with_excel(file_path, sheet_name="BoQ M&E", max_rows=0)  # 0 = no limit
     else:
         print(f"\nFile not found: {file_path}")
         print("Skipping Excel file test.")
