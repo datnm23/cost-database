@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -90,30 +90,6 @@ export default function LineItems() {
     confidence_range: undefined as ConfidenceRange | undefined,
     search: '',
   })
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+A to select all visible items
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
-        e.preventDefault()
-        if (filteredLineItems && filteredLineItems.length > 0) {
-          setSelectedRowKeys(filteredLineItems.map(item => item.line_item_id))
-          message.info(`Selected ${filteredLineItems.length} items`)
-        }
-      }
-      // Escape to clear selection
-      if (e.key === 'Escape') {
-        if (selectedRowKeys.length > 0) {
-          setSelectedRowKeys([])
-          message.info('Selection cleared')
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [filteredLineItems, selectedRowKeys])
 
   // Fetch line items
   const { data: lineItems, isLoading } = useQuery({
@@ -211,19 +187,6 @@ export default function LineItems() {
     },
   })
 
-  // Add flag mutation
-  const addFlagMutation = useMutation({
-    mutationFn: ({ lineItemId, flagType, note }: { lineItemId: number; flagType: string; note?: string }) =>
-      lineItemService.createFlag(lineItemId, flagType, note),
-    onSuccess: () => {
-      message.success('Flag added successfully')
-      queryClient.invalidateQueries({ queryKey: ['lineItems'] })
-    },
-    onError: () => {
-      message.error('Failed to add flag')
-    },
-  })
-
   // Bulk add flag mutation
   const bulkAddFlagMutation = useMutation({
     mutationFn: ({ flagType, note }: { flagType: string; note?: string }) =>
@@ -295,6 +258,30 @@ export default function LineItems() {
       item.sec_code?.toLowerCase().includes(search)
     )
   })
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+A to select all visible items
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+        e.preventDefault()
+        if (filteredLineItems && filteredLineItems.length > 0) {
+          setSelectedRowKeys(filteredLineItems.map(item => item.line_item_id))
+          message.info(`Selected ${filteredLineItems.length} items`)
+        }
+      }
+      // Escape to clear selection
+      if (e.key === 'Escape') {
+        if (selectedRowKeys.length > 0) {
+          setSelectedRowKeys([])
+          message.info('Selection cleared')
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filteredLineItems, selectedRowKeys])
 
   // Work category colors
   const workCategoryColors: Record<string, string> = {
@@ -392,7 +379,7 @@ export default function LineItems() {
       dataIndex: 'flags',
       key: 'flags',
       width: 100,
-      render: (flags: Array<{ flag_type: string; note?: string }> | undefined, record: LineItem) => {
+      render: (flags: Array<{ flag_type: string; note?: string }> | undefined) => {
         if (!flags || flags.length === 0) return '-'
         return (
           <Space size="small">

@@ -30,8 +30,13 @@ from sqlalchemy import func
 
 from app.models.line_item import LineItem
 from app.models.master_work_item import MasterWorkItem
-from app.services.description_normalizer import DescriptionNormalizer
+from app.models.pending_master_item import PendingMasterItem
+from app.models.quarantine_log import QuarantineLog
+from app.services.normalization_orchestrator import get_normalization_orchestrator
 from app.services.work_code_generator import WorkCodeGenerator
+from app.services.master_data_gatekeeper import MasterDataGatekeeper, get_gatekeeper
+from app.services.spec_extractor import get_spec_extractor
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +71,10 @@ class ProcessingResult:
     new_items: int
     items: List[MatchResult] = field(default_factory=list)
     new_items_deduped: int = 0  # New items after internal dedup
+    # Gatekeeper validation results
+    gatekeeper_approved: int = 0
+    gatekeeper_pending: int = 0
+    gatekeeper_rejected: int = 0
 
 
 class BOQProcessingService:
@@ -75,14 +84,26 @@ class BOQProcessingService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.normalizer = DescriptionNormalizer()
+        self.orchestrator = get_normalization_orchestrator()
         self.code_generator = WorkCodeGenerator(db)
+        self.gatekeeper = get_gatekeeper()
+        self.spec_extractor = get_spec_extractor()
+
+        # Initialize hybrid matcher if enabled
+        self._hybrid_matcher = None
+        if settings.HYBRID_MATCHER_ENABLED:
+            try:
+                from app.services.hybrid_matcher import get_hybrid_matcher
+                self._hybrid_matcher = get_hybrid_matcher(db)
+            except Exception as e:
+                logger.warning(f"Failed to initialize hybrid matcher: {e}. Falling back to legacy matching.")
 
     def process_boq_items(
         self,
         file_id: int,
         items: List[Dict],
-        auto_add_to_master: bool = False
+        auto_add_to_master: bool = False,
+        processing_method: str = "3_tier"
     ) -> ProcessingResult:
         """
         Xử lý danh sách công tác từ BOQ file
@@ -91,6 +112,7 @@ class BOQProcessingService:
             file_id: ID của BOQ file
             items: List of dicts with 'description', 'unit', 'quantity', 'unit_price'
             auto_add_to_master: Tự động thêm công tác mới vào master
+            processing_method: "3_tier" (hybrid) or "ai_only" (100% AI semantic)
 
         Returns:
             ProcessingResult với thống kê và chi tiết
@@ -111,7 +133,7 @@ class BOQProcessingService:
         logger.info(f"Step 3: Normalized {len(normalized_items)} items")
 
         # Step 4: Match against master
-        match_results = self._match_with_master(normalized_items)
+        match_results = self._match_with_master(normalized_items, processing_method)
 
         # Count results
         exact_matches = [r for r in match_results if r.match_type == 'exact']
@@ -125,10 +147,20 @@ class BOQProcessingService:
         new_items_deduped = len(unique_new_items)
         logger.info(f"Step 5: Deduped new items: {len(new_items)} → {new_items_deduped}")
 
-        # Step 6: Add to master if requested
+        # Step 6: Add to master if requested (with gatekeeper validation)
+        gatekeeper_approved = 0
+        gatekeeper_pending = 0
+        gatekeeper_rejected = 0
+
         if auto_add_to_master and unique_new_items:
-            self._add_to_master(file_id, unique_new_items)
-            logger.info(f"Step 6: Added {len(unique_new_items)} new items to master")
+            gk_results = self._add_to_master_with_validation(file_id, unique_new_items)
+            gatekeeper_approved = gk_results['approved']
+            gatekeeper_pending = gk_results['pending']
+            gatekeeper_rejected = gk_results['rejected']
+            logger.info(
+                f"Step 6: Gatekeeper validation - "
+                f"Approved: {gatekeeper_approved}, Pending: {gatekeeper_pending}, Rejected: {gatekeeper_rejected}"
+            )
 
         return ProcessingResult(
             total_extracted=total_extracted,
@@ -138,7 +170,10 @@ class BOQProcessingService:
             fuzzy_matches=len(fuzzy_matches),
             new_items=len(new_items),
             new_items_deduped=new_items_deduped,
-            items=match_results
+            items=match_results,
+            gatekeeper_approved=gatekeeper_approved,
+            gatekeeper_pending=gatekeeper_pending,
+            gatekeeper_rejected=gatekeeper_rejected
         )
 
     def _dedupe_raw(self, descriptions: List[str]) -> List[str]:
@@ -157,7 +192,12 @@ class BOQProcessingService:
 
     def _normalize_all(self, descriptions: List[str]) -> List[Tuple[str, str]]:
         """
-        Chuẩn hóa toàn bộ descriptions
+        Chuẩn hóa toàn bộ descriptions using NormalizationOrchestrator.
+
+        The orchestrator handles:
+        - Abbreviation expansion (BT -> Bê tông)
+        - Priority-based normalizer selection (Traffic > MEP > Description)
+        - Hybrid detection (earthwork + MEP specs)
 
         Returns:
             List of (original, normalized) tuples
@@ -167,7 +207,9 @@ class BOQProcessingService:
 
         for desc in descriptions:
             try:
-                norm = self.normalizer.normalize(desc)
+                # Use orchestrator which handles expansion + normalization
+                result = self.orchestrator.normalize(desc)
+                norm = result.normalized
                 norm_lower = norm.lower().strip()
 
                 # Dedupe by normalized form
@@ -184,9 +226,125 @@ class BOQProcessingService:
 
         return normalized
 
-    def _match_with_master(self, items: List[Tuple[str, str]]) -> List[MatchResult]:
+    def _match_with_master(self, items: List[Tuple[str, str]], processing_method: str = "3_tier") -> List[MatchResult]:
         """
         So khớp với Master database
+
+        Uses hybrid 3-tier matching or AI-only semantic matching based on processing_method.
+
+        Args:
+            items: List of (original, normalized) tuples
+            processing_method: "3_tier" (hybrid) or "ai_only" (100% AI semantic)
+
+        Returns:
+            List of MatchResult
+        """
+        # AI-only uses only semantic matching (Tier 2 only from hybrid matcher)
+        if processing_method == "ai_only":
+            if self._hybrid_matcher is not None:
+                return self._match_with_ai_only(items)
+            else:
+                logger.warning("AI-only matching requested but hybrid matcher not available. Falling back to legacy.")
+                return self._match_with_legacy_matcher(items)
+
+        # 3-tier uses hybrid matcher if available (Tier 1 + Tier 2 + Tier 3)
+        if self._hybrid_matcher is not None:
+            return self._match_with_hybrid_matcher(items)
+
+        # Legacy O(N*M) matching
+        return self._match_with_legacy_matcher(items)
+
+    def _match_with_hybrid_matcher(self, items: List[Tuple[str, str]]) -> List[MatchResult]:
+        """
+        Match using hybrid 3-tier matcher (O(N*log M)).
+
+        Args:
+            items: List of (original, normalized) tuples
+
+        Returns:
+            List of MatchResult
+        """
+        results = []
+
+        # Extract normalized descriptions for batch matching
+        descriptions = [normalized for _, normalized in items]
+
+        # Batch match with hybrid matcher
+        hybrid_results = self._hybrid_matcher.match_batch(descriptions)
+
+        # Convert HybridMatchResult to MatchResult
+        for (original, normalized), hybrid_result in zip(items, hybrid_results):
+            # Build suggested matches from candidates
+            suggested_matches = hybrid_result.candidates if hybrid_result.candidates else []
+
+            # Get master item if matched
+            master_item = None
+            if hybrid_result.master_id is not None:
+                master_item = self.db.query(MasterWorkItem).filter(
+                    MasterWorkItem.master_id == hybrid_result.master_id
+                ).first()
+
+            results.append(MatchResult(
+                original_description=original,
+                normalized_description=normalized,
+                match_type=hybrid_result.match_type,
+                similarity_score=hybrid_result.similarity_score,
+                master_item=master_item,
+                master_work_code=hybrid_result.work_code,
+                needs_review=(hybrid_result.match_type == 'fuzzy'),
+                suggested_matches=suggested_matches
+            ))
+
+        return results
+
+    def _match_with_ai_only(self, items: List[Tuple[str, str]]) -> List[MatchResult]:
+        """
+        AI-only matching using semantic embeddings only (skips exact cache and fuzzy refinement).
+
+        This uses 100% AI-based semantic matching via the embedding service and FAISS index.
+
+        Args:
+            items: List of (original, normalized) tuples
+
+        Returns:
+            List of MatchResult
+        """
+        results = []
+
+        # Extract normalized descriptions for batch matching
+        descriptions = [normalized for _, normalized in items]
+
+        # Use semantic-only matching from hybrid matcher
+        hybrid_results = self._hybrid_matcher.match_batch_semantic_only(descriptions)
+
+        # Convert HybridMatchResult to MatchResult
+        for (original, normalized), hybrid_result in zip(items, hybrid_results):
+            # Build suggested matches from candidates
+            suggested_matches = hybrid_result.candidates if hybrid_result.candidates else []
+
+            # Get master item if matched
+            master_item = None
+            if hybrid_result.master_id is not None:
+                master_item = self.db.query(MasterWorkItem).filter(
+                    MasterWorkItem.master_id == hybrid_result.master_id
+                ).first()
+
+            results.append(MatchResult(
+                original_description=original,
+                normalized_description=normalized,
+                match_type=hybrid_result.match_type,
+                similarity_score=hybrid_result.similarity_score,
+                master_item=master_item,
+                master_work_code=hybrid_result.work_code,
+                needs_review=(hybrid_result.match_type == 'fuzzy'),
+                suggested_matches=suggested_matches
+            ))
+
+        return results
+
+    def _match_with_legacy_matcher(self, items: List[Tuple[str, str]]) -> List[MatchResult]:
+        """
+        Legacy O(N*M) matching with SequenceMatcher.
 
         Args:
             items: List of (original, normalized) tuples
@@ -356,6 +514,7 @@ class BOQProcessingService:
     def _add_to_master(self, file_id: int, items: List[MatchResult]):
         """
         Thêm công tác mới vào Master database với mã mới
+        (Legacy method - use _add_to_master_with_validation instead)
         """
         for item in items:
             try:
@@ -383,10 +542,121 @@ class BOQProcessingService:
 
         self.db.commit()
 
+    def _add_to_master_with_validation(self, file_id: int, items: List[MatchResult]) -> Dict[str, int]:
+        """
+        Validate items with gatekeeper before adding to Master database.
+
+        Returns:
+            Dict with counts: approved, pending, rejected
+        """
+        # Validate all items
+        validation_results = self.gatekeeper.validate_batch(items)
+
+        counts = {
+            'approved': 0,
+            'pending': 0,
+            'rejected': 0
+        }
+
+        # Process APPROVED items → Master DB
+        for item, gk_result in validation_results['approved']:
+            try:
+                self._create_master_item(file_id, item)
+                counts['approved'] += 1
+            except Exception as e:
+                logger.error(f"Failed to add approved item: {e}")
+
+        # Process PENDING items → Staging table
+        for item, gk_result in validation_results['pending']:
+            try:
+                self._create_pending_item(file_id, item, gk_result)
+                counts['pending'] += 1
+            except Exception as e:
+                logger.error(f"Failed to add pending item: {e}")
+
+        # Log REJECTED items → Quarantine
+        for item, gk_result in validation_results['rejected']:
+            try:
+                self._log_quarantine(file_id, item, gk_result)
+                counts['rejected'] += 1
+            except Exception as e:
+                logger.error(f"Failed to log quarantine item: {e}")
+
+        self.db.commit()
+        return counts
+
+    def _create_master_item(self, file_id: int, item: MatchResult):
+        """Create a new master item from approved MatchResult"""
+        work_code = self.code_generator.generate_work_code(
+            description=item.normalized_description,
+            sec_code=None,
+            unit=None
+        )
+
+        # Extract specs for fast filtering
+        desc_normalized = item.normalized_description.lower().strip()
+        specs = self.spec_extractor.extract(desc_normalized)
+
+        master_item = MasterWorkItem(
+            work_code=work_code,
+            description=item.normalized_description,
+            description_normalized=desc_normalized,
+            sec_code='UNCLASSIFIED',
+            unit_standard='',
+            occurrence_count=1,
+            source_files=json.dumps([file_id]),
+            is_verified=False,
+            # Separated specs
+            spec_category=specs.category,
+            spec_material=specs.material,
+            spec_grade=specs.grade,
+            spec_dimension=specs.dimension,
+            matching_key=specs.to_matching_key(),
+        )
+        self.db.add(master_item)
+
+    def _create_pending_item(self, file_id: int, item: MatchResult, gk_result):
+        """Create a pending item for human review"""
+        pending_item = PendingMasterItem(
+            description=item.normalized_description,
+            description_normalized=item.normalized_description.lower().strip(),
+            sec_code='UNCLASSIFIED',
+            unit_standard='',
+            source_file_id=file_id,
+            original_description=item.original_description,
+            quality_score=gk_result.score,
+            quality_reasons=json.dumps(gk_result.reasons),
+            quality_indicators=json.dumps(gk_result.indicators),
+            status='PENDING'
+        )
+        self.db.add(pending_item)
+
+    def _log_quarantine(self, file_id: int, item: MatchResult, gk_result):
+        """Log rejected item to quarantine for analysis"""
+        # Get primary rejection reason
+        primary_reason = gk_result.reasons[0] if gk_result.reasons else 'Unknown'
+
+        # Check if it was a forbidden pattern match
+        forbidden_pattern = None
+        if 'Forbidden pattern' in primary_reason:
+            forbidden_pattern = primary_reason.split(':')[-1].strip() if ':' in primary_reason else primary_reason
+
+        quarantine_log = QuarantineLog(
+            description=item.original_description,
+            description_normalized=item.normalized_description,
+            source_file_id=file_id,
+            rejection_reason=primary_reason[:500],  # Truncate to fit column
+            quality_score=gk_result.score,
+            matched_forbidden_pattern=forbidden_pattern[:100] if forbidden_pattern else None,
+            quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None
+        )
+        self.db.add(quarantine_log)
+
     def process_line_items(
         self,
         file_id: int,
-        auto_add_to_master: bool = False
+        auto_add_to_master: bool = False,
+        processing_method: str = "3_tier"
     ) -> ProcessingResult:
         """
         Process line items from database (already parsed BOQ file)
@@ -394,6 +664,7 @@ class BOQProcessingService:
         Args:
             file_id: BOQ file ID
             auto_add_to_master: Auto add new items to master
+            processing_method: "3_tier" (hybrid) or "ai_only" (100% AI semantic)
 
         Returns:
             ProcessingResult
@@ -415,7 +686,7 @@ class BOQProcessingService:
             for item in line_items
         ]
 
-        return self.process_boq_items(file_id, items, auto_add_to_master)
+        return self.process_boq_items(file_id, items, auto_add_to_master, processing_method)
 
     def get_match_summary(self, result: ProcessingResult) -> Dict:
         """
@@ -432,7 +703,12 @@ class BOQProcessingService:
             },
             'new_items_deduped': result.new_items_deduped,
             'needs_review': result.fuzzy_matches,
-            'ready_to_add': result.new_items_deduped
+            'ready_to_add': result.new_items_deduped,
+            'gatekeeper': {
+                'approved': result.gatekeeper_approved,
+                'pending': result.gatekeeper_pending,
+                'rejected': result.gatekeeper_rejected
+            }
         }
 
 

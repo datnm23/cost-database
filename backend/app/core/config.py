@@ -75,6 +75,15 @@ class Settings(BaseSettings):
     AI_CONTEXT_SAMPLE_SIZE: int = 50  # Number of rows to sample for context analysis
     AI_DOMAIN_VALIDATION_ENABLED: bool = True  # Pass 4: Domain validation with AI correction
 
+    # Hybrid Matcher Settings
+    HYBRID_MATCHER_ENABLED: bool = True  # Feature flag for hybrid matcher
+    MATCH_CACHE_TTL: int = 86400  # 24 hours cache expiry
+    SEMANTIC_THRESHOLD: float = 0.75  # Minimum similarity to be a FAISS candidate
+    SEMANTIC_EXACT_THRESHOLD: float = 0.90  # High enough to skip Tier 3 fuzzy
+    FAISS_TOP_K: int = 20  # Number of candidates from FAISS
+    FUZZY_EXACT_THRESHOLD: float = 0.95  # Final exact match (auto-assign)
+    FUZZY_MATCH_THRESHOLD: float = 0.80  # Final fuzzy match (needs review)
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "./logs/app.log"

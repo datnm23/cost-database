@@ -11,7 +11,13 @@ from app.api.v1.endpoints import (
     master_items,
     naming_validation,
     price_history,
-    versions
+    versions,
+    matcher,
+    synonyms,
+    pending_items,
+    quarantine,
+    units,
+    templates,
 )
 
 api_router = APIRouter()
@@ -28,3 +34,9 @@ api_router.include_router(price_history.router, prefix="/master-items", tags=["P
 api_router.include_router(versions.router, prefix="/projects", tags=["Version Comparison"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(naming_validation.router, tags=["Naming Validation"])
+api_router.include_router(matcher.router, prefix="/matcher", tags=["Matcher Management"])
+api_router.include_router(synonyms.router, tags=["Synonyms"])
+api_router.include_router(pending_items.router, prefix="/pending-items", tags=["Pending Items"])
+api_router.include_router(quarantine.router, prefix="/quarantine", tags=["Quarantine"])
+api_router.include_router(units.router, tags=["Unit Standards"])
+api_router.include_router(templates.router, prefix="/templates", tags=["Column Mapping Templates"])

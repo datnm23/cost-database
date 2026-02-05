@@ -1,4 +1,5 @@
 import apiClient from './api'
+import { HeaderDiscoveryResult } from './headerDiscoveryService'
 
 export interface BOQFile {
   id: number
@@ -20,18 +21,24 @@ export interface FileStructure {
   sample_data: any[][]
   total_rows: number
   has_headers: boolean
+  header_row?: number
+  data_start_row?: number
+  sheets?: string[]
 }
 
 export interface ProcessFileData {
   column_mapping: Record<string, string>
   has_headers?: boolean
   sheet_name?: string
+  header_row?: number
+  data_start_row?: number
 }
 
 export interface UploadResponse {
   file_id: number
   filename: string
   structure: FileStructure
+  header_discovery?: HeaderDiscoveryResult
   message: string
 }
 

@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
 import hashlib
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from pathlib import Path
 import logging
 from decimal import Decimal
+
+if TYPE_CHECKING:
+    from app.services.header_discovery import HeaderDiscoveryResult
 
 logger = logging.getLogger(__name__)
 
@@ -387,3 +390,58 @@ class ExcelProcessor:
             return False, f"Cannot read file: {str(e)}"
         
         return True, None
+
+    def read_excel_with_discovery(
+        self,
+        file_path: str,
+        sheet_name: Optional[str] = None
+    ) -> Tuple[pd.DataFrame, 'HeaderDiscoveryResult']:
+        """
+        Read Excel file with intelligent header discovery.
+
+        Uses the HeaderDiscoveryService to:
+        - Select the best sheet (skip Summary, Notes, etc.)
+        - Detect the header row (not fixed at row 0)
+        - Handle merged headers
+        - Support Vietnamese abbreviations (KL, ĐG, ĐVT, STT, etc.)
+
+        Args:
+            file_path: Path to Excel file
+            sheet_name: Optional specific sheet to use
+
+        Returns:
+            Tuple of (DataFrame, HeaderDiscoveryResult)
+        """
+        from app.services.header_discovery import get_header_discovery_service
+
+        discovery = get_header_discovery_service().discover(file_path, sheet_name)
+
+        # Read the data starting after the header
+        df = pd.read_excel(
+            file_path,
+            sheet_name=discovery.sheet_name,
+            header=None,
+            skiprows=discovery.data_start_row
+        )
+
+        # Set column names from discovery
+        if len(discovery.column_names) == len(df.columns):
+            df.columns = discovery.column_names
+        else:
+            # Handle column count mismatch
+            logger.warning(
+                f"Column count mismatch: discovered {len(discovery.column_names)}, "
+                f"actual {len(df.columns)}"
+            )
+            # Use discovered names for available columns, generate names for rest
+            col_names = list(discovery.column_names)
+            while len(col_names) < len(df.columns):
+                col_names.append(f"Column_{len(col_names) + 1}")
+            df.columns = col_names[:len(df.columns)]
+
+        logger.info(
+            f"Read Excel with discovery: sheet={discovery.sheet_name}, "
+            f"header_row={discovery.header_row}, confidence={discovery.confidence_score:.1f}"
+        )
+
+        return df, discovery

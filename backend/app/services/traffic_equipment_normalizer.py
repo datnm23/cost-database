@@ -48,54 +48,54 @@ MONITORING_EQUIPMENT = {
         'vỡ': 'quan trắc vỡ',
         'nứt': 'quan trắc nứt',
     },
-    'template': 'Lắp đặt bản quan trắc {type}'
+    'template': 'Bản quan trắc - {type}'
 }
 
 # Lamp post patterns
 LAMP_POST = {
     'height_pattern': r'[Hh]=?\s*(\d+(?:\.\d+)?)\s*m?',
     'material_keywords': ['thép', 'mạ kẽm', 'composite', 'nhôm'],
-    'template': 'Lắp đặt cột đèn {material} - H={height}m'
+    'template': 'Cột đèn - {material} - H={height}m'
 }
 
-# Road marking patterns
+# Road marking patterns (Standard Naming Strategy: "Vạch sơn" instead of "Sơn vạch")
 ROAD_MARKINGS = {
     'types': {
-        'vạch liền': 'vạch liền',
-        'vạch đứt': 'vạch đứt đoạn',
-        'vạch ngang': 'vạch ngang đường',
-        'vạch dọc': 'vạch dọc đường',
-        'vạch mũi tên': 'vạch mũi tên',
-        'vạch chữ': 'vạch chữ',
-        'vạch zebrafish': 'vạch sang đường',
-        'vạch sang đường': 'vạch sang đường',
+        'vạch liền': 'liền',
+        'vạch đứt': 'đứt đoạn',
+        'vạch ngang': 'ngang đường',
+        'vạch dọc': 'dọc đường',
+        'vạch mũi tên': 'mũi tên',
+        'vạch chữ': 'chữ',
+        'vạch zebrafish': 'sang đường',
+        'vạch sang đường': 'sang đường',
     },
     'color_keywords': ['trắng', 'vàng', 'đỏ'],
-    'template': 'Sơn vạch {type} - {color}'
+    'template': 'Vạch sơn - {type} - {color}'
 }
 
-# Guardrail patterns
+# Guardrail patterns (Standard Naming Strategy: no verb prefix)
 GUARDRAILS = {
     'types': {
-        'tôn sóng': 'hộ lan tôn sóng',
-        'lan can': 'lan can',
-        'hộ lan': 'hộ lan',
-        'barrier': 'barrier bê tông',
-        'dải phân cách': 'dải phân cách',
+        'tôn sóng': 'Hộ lan tôn sóng',
+        'lan can': 'Lan can',
+        'hộ lan': 'Hộ lan',
+        'barrier': 'Barrier bê tông',
+        'dải phân cách': 'Dải phân cách',
     },
     'material_keywords': ['thép', 'bê tông', 'mạ kẽm', 'composite'],
-    'template': 'Lắp đặt {type} - {material}'
+    'template': '{type} - {material}'
 }
 
-# Marker posts
+# Marker posts (Standard Naming Strategy: no verb prefix)
 MARKER_POSTS = {
     'types': {
-        'cọc tiêu': 'cọc tiêu',
-        'cọc km': 'cọc km',
-        'cọc h': 'cọc H',
-        'cọc mốc': 'cọc mốc',
+        'cọc tiêu': 'Cọc tiêu',
+        'cọc km': 'Cọc km',
+        'cọc h': 'Cọc H',
+        'cọc mốc': 'Cọc mốc',
     },
-    'template': 'Lắp đặt {type}'
+    'template': '{type}'
 }
 
 
@@ -216,7 +216,7 @@ class TrafficEquipmentNormalizer:
         )
 
     def _normalize_monitoring(self, description: str) -> TrafficEquipmentResult:
-        """Normalize monitoring equipment description"""
+        """Normalize monitoring equipment description (Standard Naming Strategy: no verb prefix)"""
         text_lower = description.lower()
         specs = {}
 
@@ -230,10 +230,10 @@ class TrafficEquipmentNormalizer:
 
         # Build normalized description
         if monitor_type:
-            normalized = f"Lắp đặt bản {monitor_type}"
+            normalized = f"Bản {monitor_type}"
             confidence = 0.95
         else:
-            normalized = "Lắp đặt bản quan trắc"
+            normalized = "Bản quan trắc"
             confidence = 0.7
 
         return TrafficEquipmentResult(
@@ -245,7 +245,7 @@ class TrafficEquipmentNormalizer:
         )
 
     def _normalize_lamp_post(self, description: str) -> TrafficEquipmentResult:
-        """Normalize lamp post description"""
+        """Normalize lamp post description (Standard Naming Strategy: no verb prefix)"""
         text_lower = description.lower()
         specs = {}
 
@@ -264,14 +264,14 @@ class TrafficEquipmentNormalizer:
                 specs['material'] = mat
                 break
 
-        # Build normalized description
-        parts = ['Lắp đặt cột đèn']
+        # Build normalized description (noun-first format)
+        parts = ['Cột đèn']
         if material:
             parts.append(material)
         if height:
-            parts.append(f"- H={height}m")
+            parts.append(f"H={height}m")
 
-        normalized = ' '.join(parts)
+        normalized = ' - '.join(parts)
         confidence = 0.9 if height or material else 0.6
 
         return TrafficEquipmentResult(
@@ -283,7 +283,7 @@ class TrafficEquipmentNormalizer:
         )
 
     def _normalize_road_marking(self, description: str) -> TrafficEquipmentResult:
-        """Normalize road marking description"""
+        """Normalize road marking description (Standard Naming Strategy: "Vạch sơn" instead of "Sơn vạch")"""
         text_lower = description.lower()
         specs = {}
 
@@ -303,14 +303,21 @@ class TrafficEquipmentNormalizer:
                 specs['color'] = c
                 break
 
-        # Build normalized description
-        parts = ['Sơn vạch']
+        # Extract width if present (e.g., 150mm)
+        width_match = re.search(r'(\d+)\s*mm', text_lower)
+        if width_match:
+            specs['width'] = f"{width_match.group(1)}mm"
+
+        # Build normalized description (noun-first: "Vạch sơn" instead of "Sơn vạch")
+        parts = ['Vạch sơn']
         if marking_type:
             parts.append(marking_type)
         if color:
-            parts.append(f"- {color}")
+            parts.append(color)
+        if specs.get('width'):
+            parts.append(specs['width'])
 
-        normalized = ' '.join(parts)
+        normalized = ' - '.join(parts)
         confidence = 0.9 if marking_type else 0.6
 
         return TrafficEquipmentResult(
@@ -322,7 +329,7 @@ class TrafficEquipmentNormalizer:
         )
 
     def _normalize_guardrail(self, description: str) -> TrafficEquipmentResult:
-        """Normalize guardrail description"""
+        """Normalize guardrail description (Standard Naming Strategy: no verb prefix)"""
         text_lower = description.lower()
         specs = {}
 
@@ -342,16 +349,15 @@ class TrafficEquipmentNormalizer:
                 specs['material'] = mat
                 break
 
-        # Build normalized description
-        parts = ['Lắp đặt']
+        # Build normalized description (noun-first, no verb prefix)
         if rail_type:
-            parts.append(rail_type)
+            parts = [rail_type]
         else:
-            parts.append('lan can')
+            parts = ['Lan can']
         if material:
-            parts.append(f"- {material}")
+            parts.append(material)
 
-        normalized = ' '.join(parts)
+        normalized = ' - '.join(parts)
         confidence = 0.9 if rail_type else 0.6
 
         return TrafficEquipmentResult(
@@ -363,7 +369,7 @@ class TrafficEquipmentNormalizer:
         )
 
     def _normalize_marker_post(self, description: str) -> TrafficEquipmentResult:
-        """Normalize marker post description"""
+        """Normalize marker post description (Standard Naming Strategy: no verb prefix)"""
         text_lower = description.lower()
         specs = {}
 
@@ -375,12 +381,12 @@ class TrafficEquipmentNormalizer:
                 specs['post_type'] = type_key
                 break
 
-        # Build normalized description
+        # Build normalized description (noun-first, no verb prefix)
         if post_type:
-            normalized = f"Lắp đặt {post_type}"
+            normalized = post_type
             confidence = 0.95
         else:
-            normalized = "Lắp đặt cọc tiêu"
+            normalized = "Cọc tiêu"
             confidence = 0.6
 
         return TrafficEquipmentResult(

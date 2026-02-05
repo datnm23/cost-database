@@ -7,7 +7,6 @@ import {
   Statistic,
   Table,
   Select,
-  DatePicker,
   Spin,
   Empty,
   Typography,
@@ -20,14 +19,9 @@ import {
   ProjectOutlined,
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import {
-  masterItemsService,
-  PriceHistoryResponse,
-  PriceChartData,
-} from '@/services/masterItemsService'
+import { masterItemsService } from '@/services/masterItemsService'
 
 const { Text, Title } = Typography
-const { RangePicker } = DatePicker
 
 interface PriceDrillDownProps {
   masterId: number

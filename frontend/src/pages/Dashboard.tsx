@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Tag, Spin, Alert } from 'antd'
+import { Card, Row, Col, Statistic, Table, Tag, Spin, Alert, Button } from 'antd'
 import {
   ProjectOutlined,
   FileOutlined,
@@ -7,16 +6,27 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   PercentageOutlined,
+  AuditOutlined,
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import { analyticsService, DashboardStats } from '@/services/analyticsService'
-import { Line, Pie } from '@ant-design/plots'
+import { analyticsService } from '@/services/analyticsService'
+import { pendingItemsService } from '@/services/pendingItemsService'
+import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: analyticsService.getDashboardStats,
     refetchInterval: 30000, // Refresh every 30 seconds
+  })
+
+  // Fetch pending items stats
+  const { data: pendingStats } = useQuery({
+    queryKey: ['pendingItemsStats'],
+    queryFn: pendingItemsService.getStats,
+    refetchInterval: 60000, // Refresh every minute
   })
 
   if (isLoading) {
@@ -123,7 +133,7 @@ export default function Dashboard() {
 
       {/* Status Overview */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} md={12}>
+        <Col xs={24} md={8}>
           <Card title="Verification Status" bordered={false}>
             <Row gutter={16}>
               <Col span={12}>
@@ -145,17 +155,53 @@ export default function Dashboard() {
             </Row>
           </Card>
         </Col>
-        <Col xs={24} md={12}>
+        <Col xs={24} md={8}>
+          <Card
+            title="Approval Workflow"
+            bordered={false}
+            extra={
+              pendingStats?.pending ? (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => navigate('/pending-items')}
+                >
+                  Review Now
+                </Button>
+              ) : null
+            }
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic
+                  title="Pending Approval"
+                  value={pendingStats?.pending || 0}
+                  prefix={<AuditOutlined />}
+                  valueStyle={{ color: pendingStats?.pending ? '#faad14' : '#52c41a' }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic
+                  title="Approved"
+                  value={pendingStats?.approved || 0}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
           <Card title="Quick Stats" bordered={false}>
             <p>Total Items: <strong>{(stats?.verified_items || 0) + (stats?.pending_items || 0)}</strong></p>
             <p>Verification Rate: <strong>
-              {stats?.total_line_items 
-                ? ((stats.verified_items / stats.total_line_items) * 100).toFixed(1) 
+              {stats?.total_line_items
+                ? ((stats.verified_items / stats.total_line_items) * 100).toFixed(1)
                 : 0}%
             </strong></p>
             <p>Avg Items per File: <strong>
-              {stats?.total_files 
-                ? (stats.total_line_items / stats.total_files).toFixed(0) 
+              {stats?.total_files
+                ? (stats.total_line_items / stats.total_files).toFixed(0)
                 : 0}
             </strong></p>
           </Card>

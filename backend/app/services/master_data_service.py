@@ -1,5 +1,5 @@
 """
-Service để xây dựng Master Database từ Line Items
+Service de xay dung Master Database tu Line Items
 """
 import re
 import unicodedata
@@ -13,9 +13,13 @@ import logging
 
 from app.models.line_item import LineItem
 from app.models.master_work_item import MasterWorkItem
+from app.models.pending_master_item import PendingMasterItem
+from app.models.quarantine_log import QuarantineLog
 from app.utils.excel_processor import ExcelProcessor
 from app.services.work_code_generator import WorkCodeGenerator
-from app.services.description_normalizer import DescriptionNormalizer
+from app.services.normalization_orchestrator import get_normalization_orchestrator
+from app.services.master_data_gatekeeper import MasterDataGatekeeper, get_gatekeeper
+from app.services.spec_extractor import SpecExtractor, get_spec_extractor
 
 logger = logging.getLogger(__name__)
 
@@ -26,34 +30,35 @@ FUZZY_MATCH_THRESHOLD = 0.80  # 80-95% → Review
 
 class MasterDataService:
     """
-    Service để xây dựng và quản lý Master Database
+    Service de xay dung va quan ly Master Database
     """
 
     def __init__(self, db: Session):
         self.db = db
         self.excel_processor = ExcelProcessor()
         self.code_generator = WorkCodeGenerator(db)
-        self.description_normalizer = DescriptionNormalizer()
+        self.orchestrator = get_normalization_orchestrator()
+        self.gatekeeper = get_gatekeeper()
+        self.spec_extractor = get_spec_extractor()
 
     def normalize_description(self, text: str) -> str:
         """
-        Chuẩn hóa description để dễ so sánh
-        - Áp dụng Phương án 5 (Natural Syntax)
-        - Lowercase
-        - Remove extra spaces
-        - Unicode normalization
+        Chuẩn hóa description để dễ so sánh using NormalizationOrchestrator.
+
+        The orchestrator handles:
+        - Abbreviation expansion (e.g., BT -> Bê tông)
+        - Priority-based normalizer selection (Traffic > MEP > Description)
+        - Natural Syntax formatting (Phương án 5)
+        - Lowercase and Unicode normalization for indexing
         """
         if not text:
             return ""
 
-        # Bước 1: Chuẩn hóa theo Natural Syntax (Phương án 5)
-        try:
-            text_normalized = self.description_normalizer.normalize(text)
-        except Exception as e:
-            logger.warning(f"Failed to apply Natural Syntax normalization: {e}")
-            text_normalized = text
+        # Use orchestrator which handles expansion + normalization
+        result = self.orchestrator.normalize(text)
+        text_normalized = result.normalized
 
-        # Bước 2: Chuẩn hóa cho indexing/search (lowercase)
+        # Chuẩn hóa cho indexing/search (lowercase)
         # Unicode normalization
         text_normalized = unicodedata.normalize('NFC', text_normalized)
 
@@ -130,13 +135,19 @@ class MasterDataService:
             'fuzzy_matched': 0,
             'skipped': 0,
             'by_sec_code': defaultdict(int),
-            'needs_review': []
+            'needs_review': [],
+            'gatekeeper': {
+                'approved': 0,
+                'pending': 0,
+                'rejected': 0
+            }
         }
 
         for idx, item in enumerate(items, 1):
             try:
-                # Chuẩn hóa description theo Phương án 5 (Natural Syntax)
-                desc_natural = self.description_normalizer.normalize(item.description)
+                # Chuẩn hóa description using orchestrator (handles abbreviations + normalization)
+                result = self.orchestrator.normalize(item.description)
+                desc_natural = result.normalized
 
                 # Normalize cho indexing (lowercase)
                 desc_normalized = self.normalize_description(item.description)
@@ -163,26 +174,81 @@ class MasterDataService:
                         'similarity': round(similarity * 100, 1)
                     })
                 else:
-                    # Create new master item
-                    work_code = self.code_generator.generate_work_code(
-                        description=desc_natural,  # Sử dụng description đã chuẩn hóa
-                        sec_code=item.sec_code,
-                        unit=item.unit
-                    )
-                    master_item = MasterWorkItem(
-                        work_code=work_code,
-                        description=desc_natural,  # Lưu description theo Natural Syntax
-                        description_normalized=desc_normalized,  # Lưu lowercase cho search
-                        sec_code=item.sec_code,
-                        unit_standard=item.unit,
-                        ref_unit_price_min=item.unit_price if item.unit_price > 0 else None,
-                        ref_unit_price_max=item.unit_price if item.unit_price > 0 else None,
-                        ref_unit_price_avg=item.unit_price if item.unit_price > 0 else None,
-                        occurrence_count=1,
-                        source_files=json.dumps([file_id])
-                    )
-                    self.db.add(master_item)
-                    stats['added'] += 1
+                    # Create new master item - validate with gatekeeper first
+                    gk_result = self.gatekeeper.validate({
+                        'normalized_description': desc_normalized,
+                        'description': desc_natural
+                    })
+
+                    if gk_result.status == 'APPROVED':
+                        # High quality - add to master
+                        work_code = self.code_generator.generate_work_code(
+                            description=desc_natural,
+                            sec_code=item.sec_code,
+                            unit=item.unit
+                        )
+
+                        # Extract specs for fast filtering
+                        specs = self.spec_extractor.extract(desc_normalized)
+
+                        master_item = MasterWorkItem(
+                            work_code=work_code,
+                            description=desc_natural,
+                            description_normalized=desc_normalized,
+                            sec_code=item.sec_code,
+                            unit_standard=item.unit,
+                            ref_unit_price_min=item.unit_price if item.unit_price > 0 else None,
+                            ref_unit_price_max=item.unit_price if item.unit_price > 0 else None,
+                            ref_unit_price_avg=item.unit_price if item.unit_price > 0 else None,
+                            occurrence_count=1,
+                            source_files=json.dumps([file_id]),
+                            is_verified=False,
+                            # Separated specs
+                            spec_category=specs.category,
+                            spec_material=specs.material,
+                            spec_grade=specs.grade,
+                            spec_dimension=specs.dimension,
+                            matching_key=specs.to_matching_key(),
+                        )
+                        self.db.add(master_item)
+                        stats['added'] += 1
+                        stats['gatekeeper']['approved'] += 1
+
+                    elif gk_result.status == 'PENDING_REVIEW':
+                        # Medium quality - add to staging for review
+                        pending_item = PendingMasterItem(
+                            description=desc_natural,
+                            description_normalized=desc_normalized,
+                            sec_code=item.sec_code,
+                            unit_standard=item.unit,
+                            source_file_id=file_id,
+                            original_description=item.description,
+                            quality_score=gk_result.score,
+                            quality_reasons=json.dumps(gk_result.reasons),
+                            quality_indicators=json.dumps(gk_result.indicators),
+                            status='PENDING'
+                        )
+                        self.db.add(pending_item)
+                        stats['gatekeeper']['pending'] += 1
+
+                    else:
+                        # Low quality - log to quarantine
+                        primary_reason = gk_result.reasons[0] if gk_result.reasons else 'Unknown'
+                        forbidden_pattern = None
+                        if 'Forbidden pattern' in primary_reason:
+                            forbidden_pattern = primary_reason.split(':')[-1].strip() if ':' in primary_reason else primary_reason
+
+                        quarantine_log = QuarantineLog(
+                            description=item.description,
+                            description_normalized=desc_normalized,
+                            source_file_id=file_id,
+                            rejection_reason=primary_reason[:500],
+                            quality_score=gk_result.score,
+                            matched_forbidden_pattern=forbidden_pattern[:100] if forbidden_pattern else None,
+                            quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None
+                        )
+                        self.db.add(quarantine_log)
+                        stats['gatekeeper']['rejected'] += 1
 
                 stats['by_sec_code'][item.sec_code or 'UNCLASSIFIED'] += 1
 

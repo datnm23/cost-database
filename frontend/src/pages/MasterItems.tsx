@@ -14,6 +14,11 @@ import {
   message,
   Modal,
   Tooltip,
+  List,
+  Form,
+  Popconfirm,
+  Empty,
+  Badge,
 } from 'antd'
 import {
   SearchOutlined,
@@ -25,9 +30,12 @@ import {
   EditOutlined,
   DeleteOutlined,
   DollarOutlined,
+  TagsOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { masterItemsService, MasterItem } from '@/services/masterItemsService'
+import { synonymService, Synonym, SynonymCreate } from '@/services/synonymService'
 import PriceDrillDown from '@/components/PriceDrillDown'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -45,9 +53,19 @@ export default function MasterItems() {
   const [priceDrillDownOpen, setPriceDrillDownOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<MasterItem | null>(null)
 
+  // Synonym modal state
+  const [synonymModalOpen, setSynonymModalOpen] = useState(false)
+  const [synonymItem, setSynonymItem] = useState<MasterItem | null>(null)
+  const [synonymForm] = Form.useForm()
+
   const handlePriceClick = (item: MasterItem) => {
     setSelectedItem(item)
     setPriceDrillDownOpen(true)
+  }
+
+  const handleSynonymClick = (item: MasterItem) => {
+    setSynonymItem(item)
+    setSynonymModalOpen(true)
   }
 
   // Fetch master items
@@ -100,6 +118,39 @@ export default function MasterItems() {
     },
     onError: () => {
       message.error('Failed to export CSV')
+    },
+  })
+
+  // Fetch synonyms for selected item
+  const { data: synonyms, refetch: refetchSynonyms, isLoading: synonymsLoading } = useQuery({
+    queryKey: ['synonyms', synonymItem?.master_id],
+    queryFn: () => synonymService.getSynonyms(synonymItem!.master_id),
+    enabled: !!synonymItem,
+  })
+
+  // Add synonym mutation
+  const addSynonymMutation = useMutation({
+    mutationFn: ({ masterId, data }: { masterId: number; data: SynonymCreate }) =>
+      synonymService.addSynonym(masterId, data),
+    onSuccess: () => {
+      message.success('Synonym added successfully')
+      refetchSynonyms()
+      synonymForm.resetFields()
+    },
+    onError: () => {
+      message.error('Failed to add synonym')
+    },
+  })
+
+  // Delete synonym mutation
+  const deleteSynonymMutation = useMutation({
+    mutationFn: synonymService.deleteSynonym,
+    onSuccess: () => {
+      message.success('Synonym deleted successfully')
+      refetchSynonyms()
+    },
+    onError: () => {
+      message.error('Failed to delete synonym')
     },
   })
 
@@ -190,10 +241,17 @@ export default function MasterItems() {
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 150,
       fixed: 'right',
       render: (_, record) => (
         <Space>
+          <Tooltip title="Synonyms">
+            <Button
+              type="text"
+              icon={<TagsOutlined />}
+              onClick={() => handleSynonymClick(record)}
+            />
+          </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="text"
@@ -358,6 +416,137 @@ export default function MasterItems() {
           }}
         />
       )}
+
+      {/* Synonym Modal */}
+      <Modal
+        title={
+          <Space>
+            <TagsOutlined />
+            <span>Manage Synonyms</span>
+            {synonymItem && <Tag color="blue">{synonymItem.work_code}</Tag>}
+          </Space>
+        }
+        open={synonymModalOpen}
+        onCancel={() => {
+          setSynonymModalOpen(false)
+          setSynonymItem(null)
+          synonymForm.resetFields()
+        }}
+        footer={null}
+        width={700}
+      >
+        {synonymItem && (
+          <>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Text strong>{synonymItem.description}</Text>
+            </Card>
+
+            {/* Add Synonym Form */}
+            <Form
+              form={synonymForm}
+              layout="inline"
+              style={{ marginBottom: 16 }}
+              onFinish={(values) => {
+                addSynonymMutation.mutate({
+                  masterId: synonymItem.master_id,
+                  data: values as SynonymCreate,
+                })
+              }}
+            >
+              <Form.Item
+                name="synonym_text"
+                rules={[{ required: true, message: 'Required' }]}
+                style={{ flex: 1 }}
+              >
+                <Input placeholder="Enter synonym text..." />
+              </Form.Item>
+              <Form.Item
+                name="synonym_type"
+                rules={[{ required: true, message: 'Required' }]}
+              >
+                <Select
+                  placeholder="Type"
+                  style={{ width: 140 }}
+                  options={[
+                    { label: 'Alias', value: 'alias' },
+                    { label: 'Abbreviation', value: 'abbreviation' },
+                    { label: 'Regional', value: 'regional' },
+                    { label: 'English', value: 'english' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<PlusOutlined />}
+                  loading={addSynonymMutation.isPending}
+                >
+                  Add
+                </Button>
+              </Form.Item>
+            </Form>
+
+            {/* Synonyms List */}
+            {synonymsLoading ? (
+              <div style={{ textAlign: 'center', padding: 24 }}>Loading...</div>
+            ) : synonyms && synonyms.length > 0 ? (
+              <List
+                dataSource={synonyms}
+                renderItem={(syn: Synonym) => (
+                  <List.Item
+                    actions={[
+                      <Popconfirm
+                        key="delete"
+                        title="Delete this synonym?"
+                        onConfirm={() => deleteSynonymMutation.mutate(syn.synonym_id)}
+                      >
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          loading={deleteSynonymMutation.isPending}
+                        />
+                      </Popconfirm>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={
+                        <Space>
+                          <Text>{syn.synonym_text}</Text>
+                          <Tag
+                            color={
+                              syn.synonym_type === 'alias'
+                                ? 'blue'
+                                : syn.synonym_type === 'abbreviation'
+                                ? 'green'
+                                : syn.synonym_type === 'regional'
+                                ? 'orange'
+                                : 'purple'
+                            }
+                          >
+                            {syn.synonym_type}
+                          </Tag>
+                          {!syn.is_active && <Tag color="red">Inactive</Tag>}
+                        </Space>
+                      }
+                      description={`Source: ${syn.source || 'manual'}`}
+                    />
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description="No synonyms yet. Add one above!" />
+            )}
+
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <Badge count={synonyms?.length || 0} style={{ backgroundColor: '#1890ff' }}>
+                <Text type="secondary">Total Synonyms</Text>
+              </Badge>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

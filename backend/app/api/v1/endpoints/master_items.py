@@ -102,6 +102,7 @@ class BOQProcessRequest(BaseModel):
     """Request for processing BOQ file with new flow"""
     file_id: int
     auto_add_to_master: bool = False
+    processing_method: str = "3_tier"  # "3_tier" (hybrid) or "ai_only" (100% AI semantic)
 
 
 class BOQProcessResponse(BaseModel):
@@ -471,7 +472,8 @@ def process_boq_file(
 
     result = service.process_line_items(
         file_id=data.file_id,
-        auto_add_to_master=data.auto_add_to_master
+        auto_add_to_master=data.auto_add_to_master,
+        processing_method=data.processing_method
     )
 
     summary = service.get_match_summary(result)

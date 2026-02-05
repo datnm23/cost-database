@@ -8,7 +8,7 @@ import logging
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.v1.router import api_router
-from app.core.database import engine, Base
+from app.core.database import engine, Base, SessionLocal
 
 # Setup logging
 setup_logging()
@@ -22,12 +22,26 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up BOQ System API...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"Database: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
-    
+
     # Create tables (in production, use Alembic migrations)
     # Base.metadata.create_all(bind=engine)
-    
+
+    # Initialize hybrid matcher if enabled
+    if settings.HYBRID_MATCHER_ENABLED:
+        try:
+            from app.services.hybrid_matcher import init_hybrid_matcher
+            db = SessionLocal()
+            try:
+                init_hybrid_matcher(db)
+                logger.info("Hybrid matcher initialized successfully")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to initialize hybrid matcher: {e}")
+            logger.warning("BOQ processing will use legacy matching")
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down BOQ System API...")
 

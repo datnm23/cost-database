@@ -11,6 +11,15 @@ import {
   DatabaseOutlined,
   ThunderboltOutlined,
   PieChartOutlined,
+  AuditOutlined,
+  StopOutlined,
+  ToolOutlined,
+  CloudServerOutlined,
+  TagsOutlined,
+  BarcodeOutlined,
+  EditOutlined,
+  CloudUploadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -39,6 +48,35 @@ export default function MainLayout({ children }: MainLayoutProps) {
         { key: '/master-items', label: 'Master Items', icon: <DatabaseOutlined /> },
         { key: '/work-code-generator', label: 'Code Generator', icon: <ThunderboltOutlined /> },
         { key: '/master-statistics', label: 'Statistics', icon: <PieChartOutlined /> },
+      ],
+    },
+    {
+      key: 'tools-group',
+      label: 'Tools',
+      icon: <ToolOutlined />,
+      children: [
+        { key: '/boq-processing', label: 'BOQ Processing', icon: <CloudUploadOutlined /> },
+        { key: '/templates', label: 'Mapping Templates', icon: <FileTextOutlined /> },
+        { key: '/naming-tools', label: 'Naming Tools', icon: <EditOutlined /> },
+        { key: '/code-management', label: 'Code Systems', icon: <BarcodeOutlined /> },
+      ],
+    },
+    {
+      key: 'approval-group',
+      label: 'Approval Workflow',
+      icon: <AuditOutlined />,
+      children: [
+        { key: '/pending-items', label: 'Pending Review', icon: <AuditOutlined /> },
+        { key: '/quarantine-log', label: 'Quarantine Log', icon: <StopOutlined /> },
+      ],
+    },
+    {
+      key: 'admin-group',
+      label: 'Admin',
+      icon: <SettingOutlined />,
+      children: [
+        { key: '/synonyms', label: 'Synonyms', icon: <TagsOutlined /> },
+        { key: '/system-health', label: 'System Health', icon: <CloudServerOutlined /> },
       ],
     },
     { key: '/analytics', label: 'Analytics', icon: <BarChartOutlined /> },

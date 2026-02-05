@@ -5,15 +5,9 @@ import {
   Button,
   Select,
   Steps,
-  Table,
   Form,
-  Input,
   message,
-  Space,
   Progress,
-  Alert,
-  Tag,
-  Checkbox,
 } from 'antd'
 import {
   InboxOutlined,
@@ -25,16 +19,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { projectService, Project } from '@/services/projectService'
 import { fileService, FileStructure } from '@/services/fileService'
+import { HeaderDiscoveryResult } from '@/services/headerDiscoveryService'
+import { ColumnMappingWizard, ColumnMappingResult } from '@/components/ColumnMappingWizard'
 import type { UploadFile } from 'antd/es/upload/interface'
 
 const { Dragger } = Upload
 const { Option } = Select
-const { Step } = Steps
 
 export default function FileUpload() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [form] = Form.useForm()
 
   // State management
   const [currentStep, setCurrentStep] = useState(0)
@@ -43,8 +37,10 @@ export default function FileUpload() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [fileId, setFileId] = useState<number | null>(null)
   const [fileStructure, setFileStructure] = useState<FileStructure | null>(null)
-  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
-  const [hasHeaders, setHasHeaders] = useState(true)
+
+  // Wizard state
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [headerDiscovery, setHeaderDiscovery] = useState<HeaderDiscoveryResult | null>(null)
 
   // Fetch projects
   const { data: projects = [], isLoading: loadingProjects } = useQuery<Project[]>({
@@ -68,19 +64,28 @@ export default function FileUpload() {
         console.log('Structure found:', data.structure)
         setFileStructure(data.structure)
 
-        // Auto-detect column mapping based on common column names
-        const autoMapping: Record<string, string> = {}
-        data.structure.columns.forEach((col: string) => {
-          const lower = col.toLowerCase()
-          if (lower.includes('item') && lower.includes('no')) autoMapping['item_number'] = col
-          if (lower.includes('description') || lower.includes('desc')) autoMapping['description'] = col
-          if (lower.includes('quantity') || lower.includes('qty')) autoMapping['quantity'] = col
-          if (lower.includes('unit') && !lower.includes('price')) autoMapping['unit'] = col
-          if (lower.includes('unit') && lower.includes('price')) autoMapping['unit_price'] = col
-          if (lower.includes('total') || lower.includes('amount')) autoMapping['total_price'] = col
-        })
-        setColumnMapping(autoMapping)
-        setCurrentStep(2) // Skip analyze step, go directly to mapping
+        // Check if header_discovery is available from backend
+        if (data.header_discovery) {
+          setHeaderDiscovery(data.header_discovery)
+          setWizardOpen(true)
+        } else {
+          // Create a fallback header discovery result from structure
+          const fallbackDiscovery: HeaderDiscoveryResult = {
+            sheet_name: 'Sheet1',
+            sheet_index: 0,
+            header_row: 1,
+            data_start_row: 2,
+            column_names: data.structure.columns,
+            confidence_score: 80,
+            is_merged_header: false,
+            column_type_hints: {},
+            sheets: [{ name: 'Sheet1', index: 0, priority_score: 100, skip_reason: null }],
+          }
+          setHeaderDiscovery(fallbackDiscovery)
+          setWizardOpen(true)
+        }
+
+        setCurrentStep(1) // Move to wizard step
       } else {
         console.error('No structure in response')
       }
@@ -94,16 +99,20 @@ export default function FileUpload() {
 
   // Process mutation
   const processMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mappingResult: ColumnMappingResult) => {
       if (!fileId) throw new Error('No file ID')
       return fileService.processFile(fileId, {
-        column_mapping: columnMapping,
-        has_headers: hasHeaders,
+        column_mapping: mappingResult.columnMapping,
+        has_headers: true,
+        sheet_name: mappingResult.sheetName,
+        header_row: mappingResult.headerRow,
+        data_start_row: mappingResult.dataStartRow,
       })
     },
     onSuccess: () => {
       message.success('File processed successfully! Redirecting to line items...')
       queryClient.invalidateQueries({ queryKey: ['projects'] })
+      setWizardOpen(false)
       setTimeout(() => {
         navigate(`/line-items?file_id=${fileId}`)
       }, 1500)
@@ -146,49 +155,49 @@ export default function FileUpload() {
     return false // Prevent default upload behavior
   }
 
-  const handleProcess = () => {
-    // Validate that required columns are mapped
-    if (!columnMapping.description) {
-      message.error('Description column is required')
-      return
-    }
-    processMutation.mutate()
+  const handleMappingComplete = (mappingResult: ColumnMappingResult) => {
+    processMutation.mutate(mappingResult)
   }
 
-  const requiredColumns = [
-    { key: 'item_number', label: 'Item Number', required: false },
-    { key: 'description', label: 'Description', required: true },
-    { key: 'quantity', label: 'Quantity', required: false },
-    { key: 'unit', label: 'Unit', required: false },
-    { key: 'unit_price', label: 'Unit Price', required: false },
-    { key: 'total_price', label: 'Total Price', required: false },
+  const handleWizardClose = () => {
+    setWizardOpen(false)
+    // Reset to allow re-upload
+    setCurrentStep(0)
+    setUploadedFile(null)
+    setUploadProgress(0)
+  }
+
+  const handleStartOver = () => {
+    setCurrentStep(0)
+    setUploadedFile(null)
+    setUploadProgress(0)
+    setFileId(null)
+    setFileStructure(null)
+    setHeaderDiscovery(null)
+    setWizardOpen(false)
+  }
+
+  const steps = [
+    {
+      title: 'Select Project & Upload',
+      icon: <UploadOutlined />,
+    },
+    {
+      title: 'Map Columns',
+      icon: currentStep === 1 ? <SyncOutlined spin={processMutation.isPending} /> : <CheckCircleOutlined />,
+    },
+    {
+      title: 'Complete',
+      icon: <CheckCircleOutlined />,
+    },
   ]
-
-  const sampleDataColumns = fileStructure?.columns.map(col => ({
-    title: col,
-    dataIndex: col,
-    key: col,
-    width: 150,
-  })) || []
-
-  const sampleDataSource = fileStructure?.sample_data.map((row, idx) => {
-    const obj: any = { key: idx }
-    row.forEach((val, colIdx) => {
-      obj[fileStructure.columns[colIdx]] = val
-    })
-    return obj
-  }) || []
 
   return (
     <div>
       <h1 style={{ marginBottom: 24 }}>Upload BOQ File</h1>
 
       <Card>
-        <Steps current={currentStep} style={{ marginBottom: 32 }}>
-          <Step title="Select Project & Upload" icon={<UploadOutlined />} />
-          <Step title="Analyze Structure" icon={<SyncOutlined spin={uploadMutation.isPending && currentStep === 1} />} />
-          <Step title="Map Columns & Process" icon={<CheckCircleOutlined />} />
-        </Steps>
+        <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
         {/* Step 0: Project Selection and Upload */}
         {currentStep === 0 && (
@@ -244,88 +253,44 @@ export default function FileUpload() {
           </div>
         )}
 
-        {/* Step 1: Analyzing (automatic) */}
-        {currentStep === 1 && (
+        {/* Step 1: Wizard is open */}
+        {currentStep === 1 && !wizardOpen && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <SyncOutlined spin style={{ fontSize: 48, color: '#1890ff' }} />
-            <h3 style={{ marginTop: 16 }}>Analyzing file structure...</h3>
-            <p>This will only take a moment.</p>
+            <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+            <h3 style={{ marginTop: 16 }}>File uploaded successfully</h3>
+            <p>Click below to open the Column Mapping Wizard</p>
+            <Button type="primary" onClick={() => setWizardOpen(true)} style={{ marginTop: 16 }}>
+              Open Mapping Wizard
+            </Button>
+            <Button onClick={handleStartOver} style={{ marginLeft: 8, marginTop: 16 }}>
+              Start Over
+            </Button>
           </div>
         )}
 
-        {/* Step 2: Column Mapping */}
-        {currentStep === 2 && fileStructure && (
-          <div>
-            <Alert
-              message="Map Your Columns"
-              description={`We detected ${fileStructure.columns.length} columns and ${fileStructure.total_rows} rows in your file. Please map the columns to the appropriate BOQ fields.`}
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-
-            <Checkbox
-              checked={hasHeaders}
-              onChange={(e) => setHasHeaders(e.target.checked)}
-              style={{ marginBottom: 16 }}
-            >
-              First row contains headers
-            </Checkbox>
-
-            <h3>Column Mapping</h3>
-            <Form layout="vertical" style={{ marginBottom: 24 }}>
-              {requiredColumns.map((field) => (
-                <Form.Item
-                  key={field.key}
-                  label={
-                    <span>
-                      {field.label}
-                      {field.required && <Tag color="red" style={{ marginLeft: 8 }}>Required</Tag>}
-                    </span>
-                  }
-                >
-                  <Select
-                    placeholder={`Select column for ${field.label}`}
-                    value={columnMapping[field.key] && fileStructure.columns.includes(columnMapping[field.key]) ? columnMapping[field.key] : undefined}
-                    onChange={(value) => setColumnMapping({ ...columnMapping, [field.key]: value })}
-                    allowClear
-                  >
-                    {fileStructure.columns.map((col) => (
-                      <Option key={col} value={col}>
-                        {col}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              ))}
-            </Form>
-
-            <h3>Sample Data Preview</h3>
-            <Table
-              columns={sampleDataColumns}
-              dataSource={sampleDataSource}
-              scroll={{ x: 'max-content' }}
-              pagination={false}
-              size="small"
-              bordered
-            />
-
-            <div style={{ marginTop: 24, textAlign: 'right' }}>
-              <Space>
-                <Button onClick={() => setCurrentStep(0)}>Start Over</Button>
-                <Button
-                  type="primary"
-                  onClick={handleProcess}
-                  loading={processMutation.isPending}
-                  disabled={!columnMapping.description}
-                >
-                  Process File & Import Data
-                </Button>
-              </Space>
-            </div>
+        {/* Step 2: Processing complete - this is shown briefly before redirect */}
+        {currentStep === 2 && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+            <h3 style={{ marginTop: 16 }}>Processing complete!</h3>
+            <p>Redirecting to line items...</p>
           </div>
         )}
       </Card>
+
+      {/* Column Mapping Wizard Modal */}
+      {headerDiscovery && fileStructure && (
+        <ColumnMappingWizard
+          open={wizardOpen}
+          onClose={handleWizardClose}
+          onComplete={handleMappingComplete}
+          fileId={fileId || 0}
+          fileName={uploadedFile?.name || ''}
+          headerDiscovery={headerDiscovery}
+          sampleData={fileStructure.sample_data}
+          allRows={fileStructure.sample_data}
+        />
+      )}
     </div>
   )
 }

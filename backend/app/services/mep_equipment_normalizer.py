@@ -70,27 +70,27 @@ PANEL_PATTERNS = {
 PIPE_PATTERNS = {
     'hdpe': {
         'pattern': r'[Ốố]ng\s*HDPE\s*D?N?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống HDPE - D{diameter}{pressure}',
+        'template': 'Ống HDPE - D{diameter}{pressure}',
     },
     'pvc': {
         'pattern': r'[Ốố]ng\s*(?:u)?PVC\s*D?N?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống PVC - D{diameter}{pressure}',
+        'template': 'Ống PVC - D{diameter}{pressure}',
     },
     'ppr': {
         'pattern': r'[Ốố]ng\s*PPR\s*D?N?(\d+)\s*(PN\d+)?',
-        'template': 'Lắp đặt ống PPR - D{diameter}{pressure}',
+        'template': 'Ống PPR - D{diameter}{pressure}',
     },
     'steel': {
         'pattern': r'[Ốố]ng\s*thép\s*(?:đen|mạ\s*kẽm)?\s*D?N?(\d+)',
-        'template': 'Lắp đặt ống thép - DN{diameter}',
+        'template': 'Ống thép - DN{diameter}',
     },
     'ttk': {
         'pattern': r'[Ốố]ng\s*TTK\s*D?N?(\d+)',
-        'template': 'Lắp đặt ống TTK - DN{diameter}',
+        'template': 'Ống TTK - DN{diameter}',
     },
     'conduit': {
         'pattern': r'[Ốố]ng\s*(?:luồn\s*dây|gen)\s*D?(\d+)',
-        'template': 'Lắp đặt ống luồn dây - D{diameter}',
+        'template': 'Ống luồn dây - D{diameter}',
     },
 }
 
@@ -98,15 +98,15 @@ PIPE_PATTERNS = {
 BREAKER_PATTERNS = {
     'mccb': {
         'pattern': r'(MCCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?\s*[-]?\s*(\d+)?[kK]?[Aa]?',
-        'template': 'Cung cấp lắp đặt MCCB - {poles}P - {amps}A{ka}',
+        'template': 'MCCB - {poles}P - {amps}A{ka}',
     },
     'mcb': {
-        'pattern': r'(MCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?',
-        'template': 'Cung cấp lắp đặt MCB - {poles}P - {amps}A',
+        'pattern': r'(MCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?\s*[-]?\s*(\d+)?[kK]?[Aa]?',
+        'template': 'MCB - {poles}P - {amps}A{ka}',
     },
     'rccb': {
-        'pattern': r'(RCCB|RCBO|ELCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?',
-        'template': 'Cung cấp lắp đặt {type} - {poles}P - {amps}A',
+        'pattern': r'(RCCB|RCBO|ELCB)\s*[-]?\s*(\d+)[Pp]?\s*[-]?\s*(\d+)[Aa]?\s*[-]?\s*(\d+)?[kK]?[Aa]?',
+        'template': '{type} - {poles}P - {amps}A{ka}',
     },
 }
 
@@ -114,15 +114,15 @@ BREAKER_PATTERNS = {
 LIGHTING_PATTERNS = {
     'street_light': {
         'pattern': r'[Đđ]èn\s*(?:chiếu\s*sáng|đường)\s*(?:LED)?\s*(\d+)[Ww]?',
-        'template': 'Lắp đặt đèn chiếu sáng LED - {wattage}W',
+        'template': 'Đèn chiếu sáng LED - {wattage}W',
     },
     'signal_light': {
         'pattern': r'[Đđ]èn\s*tín\s*hiệu\s*(?:báo\s*pha)?',
-        'template': 'Lắp đặt đèn tín hiệu giao thông',
+        'template': 'Đèn tín hiệu báo pha',
     },
     'led_panel': {
         'pattern': r'[Đđ]èn\s*(?:LED\s*)?(?:panel|âm\s*trần)\s*(\d+)[Ww]?',
-        'template': 'Lắp đặt đèn LED panel - {wattage}W',
+        'template': 'Đèn LED panel - {wattage}W',
     },
 }
 
@@ -226,10 +226,15 @@ class MEPEquipmentNormalizer:
                 if kw in text_lower:
                     return self._normalize_panel(description, panel_type, config, is_material)
 
-        # Fallback: preserve original with verb prefix if needed
+        # Fallback: preserve original, remove verb prefix if present (Standard Naming Strategy)
         normalized = description.strip()
-        if is_material and not any(description.lower().startswith(v) for v in ['lắp đặt', 'cung cấp', 'thi công']):
-            normalized = f"Cung cấp lắp đặt {description.strip()}"
+        # Remove common verb prefixes
+        verb_prefixes = ['cung cấp lắp đặt', 'lắp đặt', 'cung cấp', 'thi công']
+        normalized_lower = normalized.lower()
+        for prefix in verb_prefixes:
+            if normalized_lower.startswith(prefix):
+                normalized = normalized[len(prefix):].strip()
+                break
 
         return MEPEquipmentResult(
             original=description,
@@ -280,10 +285,7 @@ class MEPEquipmentNormalizer:
         else:
             normalized = description
 
-        # Add verb if material only
-        if is_material:
-            normalized = f"Lắp đặt {normalized}"
-
+        # Standard Naming Strategy: Don't add verb prefix, keep noun-first format
         return MEPEquipmentResult(
             original=description,
             normalized=normalized,
@@ -311,20 +313,25 @@ class MEPEquipmentNormalizer:
             ka = match.group(4)
             specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
             ka_str = f" - {ka}kA" if ka else ""
-            normalized = f"Cung cấp lắp đặt MCCB - {poles}P - {amps}A{ka_str}"
+            # Standard Naming Strategy: MCCB - 3P - 400A 50kA (no verb prefix)
+            normalized = f"MCCB - {poles}P - {amps}A{ka_str}"
 
         elif breaker_type == 'mcb':
             poles = match.group(2)
             amps = match.group(3)
-            specs = {'poles': poles, 'amps': amps}
-            normalized = f"Cung cấp lắp đặt MCB - {poles}P - {amps}A"
+            ka = match.group(4) if match.lastindex >= 4 else None
+            specs = {'poles': poles, 'amps': amps, 'ka': ka}
+            ka_str = f" - {ka}kA" if ka else ""
+            normalized = f"MCB - {poles}P - {amps}A{ka_str}"
 
         elif breaker_type == 'rccb':
             breaker = match.group(1)
             poles = match.group(2)
             amps = match.group(3)
-            specs = {'type': breaker, 'poles': poles, 'amps': amps}
-            normalized = f"Cung cấp lắp đặt {breaker} - {poles}P - {amps}A"
+            ka = match.group(4) if match.lastindex >= 4 else None
+            specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
+            ka_str = f" - {ka}kA" if ka else ""
+            normalized = f"{breaker} - {poles}P - {amps}A{ka_str}"
 
         else:
             normalized = description
@@ -360,14 +367,14 @@ class MEPEquipmentNormalizer:
             pressure = match.group(2).upper()
             specs['pressure'] = pressure
 
-        # Build normalized string based on pipe type
+        # Build normalized string based on pipe type (Standard Naming Strategy: no verb prefix)
         pipe_name = pipe_type.upper()
         if pipe_type == 'steel':
-            normalized = f"Lắp đặt ống thép - DN{diameter}"
+            normalized = f"Ống thép - DN{diameter}"
         elif pipe_type == 'conduit':
-            normalized = f"Lắp đặt ống luồn dây - D{diameter}"
+            normalized = f"Ống luồn dây - D{diameter}"
         else:
-            parts = [f"Lắp đặt ống {pipe_name}", f"D{diameter}"]
+            parts = [f"Ống {pipe_name}", f"D{diameter}"]
             if pressure:
                 parts.append(pressure)
             normalized = ' - '.join(parts)
@@ -389,20 +396,20 @@ class MEPEquipmentNormalizer:
         config: dict,
         is_material: bool
     ) -> MEPEquipmentResult:
-        """Normalize lighting equipment description"""
+        """Normalize lighting equipment description (Standard Naming Strategy: no verb prefix)"""
         specs = {}
 
         if light_type == 'signal_light':
-            normalized = "Lắp đặt đèn tín hiệu giao thông"
+            normalized = "Đèn tín hiệu báo pha"
         else:
             wattage = match.group(1) if match.lastindex >= 1 else None
             if wattage:
                 specs['wattage'] = wattage
 
             if light_type == 'street_light':
-                normalized = f"Lắp đặt đèn chiếu sáng LED - {wattage}W" if wattage else "Lắp đặt đèn chiếu sáng LED"
+                normalized = f"Đèn chiếu sáng LED - {wattage}W" if wattage else "Đèn chiếu sáng LED"
             elif light_type == 'led_panel':
-                normalized = f"Lắp đặt đèn LED panel - {wattage}W" if wattage else "Lắp đặt đèn LED panel"
+                normalized = f"Đèn LED panel - {wattage}W" if wattage else "Đèn LED panel"
             else:
                 normalized = description
 
@@ -422,11 +429,19 @@ class MEPEquipmentNormalizer:
         config: dict,
         is_material: bool
     ) -> MEPEquipmentResult:
-        """Normalize electrical panel - PRESERVES original specs"""
+        """Normalize electrical panel - PRESERVES original specs (Standard Naming Strategy: no verb prefix)"""
         specs = {}
 
         # For panels, preserve the original description but clean it up
         desc_clean = description.strip()
+
+        # Remove common verb prefixes if present
+        verb_prefixes = ['cung cấp lắp đặt', 'lắp đặt', 'cung cấp', 'thi công']
+        desc_lower = desc_clean.lower()
+        for prefix in verb_prefixes:
+            if desc_lower.startswith(prefix):
+                desc_clean = desc_clean[len(prefix):].strip()
+                break
 
         # Extract key specs if present
         voltage_match = re.search(r'(\d+)\s*[Vv]', description)
@@ -437,11 +452,8 @@ class MEPEquipmentNormalizer:
         if phase_match:
             specs['phase'] = phase_match.group(1)
 
-        # Add verb if material only, but keep original specs
-        if is_material:
-            normalized = f"Cung cấp lắp đặt {desc_clean}"
-        else:
-            normalized = desc_clean
+        # Standard Naming Strategy: Don't add verb prefix
+        normalized = desc_clean
 
         return MEPEquipmentResult(
             original=description,

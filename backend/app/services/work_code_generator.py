@@ -32,15 +32,45 @@ class WorkCodeGenerator:
 
     # Mapping SEC codes to short prefixes
     SEC_PREFIX_MAP = {
+        # Level 1
         'SEC-00': 'S00',
         'SEC-01': 'S01',
+        'SEC-02': 'S02',
+        'SEC-03': 'S03',
+        'SEC-04': 'S04',
+        'SEC-05': 'S05',
+
+        # Level 2 - Substructure
         'SEC-01-01': 'S01',  # Earthworks
         'SEC-01-02': 'S01',  # Piling
         'SEC-01-03': 'S01',  # Foundation
-        'SEC-02': 'S02',     # Superstructure
-        'SEC-03': 'S03',     # Architecture & Finishes
-        'SEC-04': 'S04',     # MEP
-        'SEC-05': 'S05',     # Landscape
+
+        # Level 2 - Superstructure
+        'SEC-02-01': 'S02',  # Concrete
+        'SEC-02-02': 'S02',  # Slab
+        'SEC-02-03': 'S02',  # Beam
+        'SEC-02-04': 'S02',  # Column
+        'SEC-02-05': 'S02',  # Wall
+        'SEC-02-06': 'S02',  # Rebar
+
+        # Level 2 - Architecture
+        'SEC-03-01': 'S03',  # Masonry
+        'SEC-03-02': 'S03',  # Plastering
+        'SEC-03-03': 'S03',  # Painting
+        'SEC-03-04': 'S03',  # Tiling
+        'SEC-03-05': 'S03',  # Ceiling
+        'SEC-03-06': 'S03',  # Door & Window
+
+        # Level 2 - MEP
+        'SEC-04-01': 'S04',  # Electrical
+        'SEC-04-02': 'S04',  # Plumbing
+        'SEC-04-03': 'S04',  # HVAC
+        'SEC-04-04': 'S04',  # Fire Protection
+
+        # Level 2 - Landscape
+        'SEC-05-01': 'S05',  # Road
+        'SEC-05-02': 'S05',  # Pavement
+        'SEC-05-03': 'S05',  # Greenery
     }
 
     # Từ khóa chính cho categories (Vietnamese -> English code)
