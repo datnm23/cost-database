@@ -69,19 +69,27 @@ PANEL_PATTERNS = {
 # Pipe patterns (HDPE, PVC, PPR, steel)
 PIPE_PATTERNS = {
     'hdpe': {
-        'pattern': r'[Ốố]ng\s*HDPE\s*D?N?(\d+)\s*(PN\d+)?',
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*HDPE\s*D?N?(\d+)\s*(PN\d+)?',
         'template': 'Ống HDPE - D{diameter}{pressure}',
     },
     'pvc': {
-        'pattern': r'[Ốố]ng\s*(?:u)?PVC\s*D?N?(\d+)\s*(PN\d+)?',
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*(?:u)?PVC\s*D?N?(\d+)\s*(PN\d+)?',
         'template': 'Ống PVC - D{diameter}{pressure}',
     },
     'ppr': {
-        'pattern': r'[Ốố]ng\s*PPR\s*D?N?(\d+)\s*(PN\d+)?',
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*PPR\s*D?N?(\d+)\s*(PN\d+)?',
         'template': 'Ống PPR - D{diameter}{pressure}',
     },
+    'steel_galvanized': {
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*thép\s*mạ\s*kẽm\s*D?N?(\d+)',
+        'template': 'Ống thép mạ kẽm - DN{diameter}',
+    },
+    'steel_black': {
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*thép\s*đen\s*D?N?(\d+)',
+        'template': 'Ống thép đen - DN{diameter}',
+    },
     'steel': {
-        'pattern': r'[Ốố]ng\s*thép\s*(?:đen|mạ\s*kẽm)?\s*D?N?(\d+)',
+        'pattern': r'(?:cung\s*cấp\s*)?(?:lắp\s*đặt\s*)?[Ốố]ng\s*thép\s*D?N?(\d+)',
         'template': 'Ống thép - DN{diameter}',
     },
     'ttk': {
@@ -312,7 +320,8 @@ class MEPEquipmentNormalizer:
             amps = match.group(3)
             ka = match.group(4)
             specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
-            ka_str = f" - {ka}kA" if ka else ""
+            # Standard Naming Strategy: kA should be part of the 3rd component, not a 4th component
+            ka_str = f" {ka}kA" if ka else ""
             # Standard Naming Strategy: MCCB - 3P - 400A 50kA (no verb prefix)
             normalized = f"MCCB - {poles}P - {amps}A{ka_str}"
 
@@ -321,7 +330,8 @@ class MEPEquipmentNormalizer:
             amps = match.group(3)
             ka = match.group(4) if match.lastindex >= 4 else None
             specs = {'poles': poles, 'amps': amps, 'ka': ka}
-            ka_str = f" - {ka}kA" if ka else ""
+            # Standard Naming Strategy: kA should be part of the 3rd component, not a 4th component
+            ka_str = f" {ka}kA" if ka else ""
             normalized = f"MCB - {poles}P - {amps}A{ka_str}"
 
         elif breaker_type == 'rccb':
@@ -330,7 +340,8 @@ class MEPEquipmentNormalizer:
             amps = match.group(3)
             ka = match.group(4) if match.lastindex >= 4 else None
             specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
-            ka_str = f" - {ka}kA" if ka else ""
+            # Standard Naming Strategy: kA should be part of the 3rd component, not a 4th component
+            ka_str = f" {ka}kA" if ka else ""
             normalized = f"{breaker} - {poles}P - {amps}A{ka_str}"
 
         else:
@@ -368,13 +379,26 @@ class MEPEquipmentNormalizer:
             specs['pressure'] = pressure
 
         # Build normalized string based on pipe type (Standard Naming Strategy: no verb prefix)
-        pipe_name = pipe_type.upper()
-        if pipe_type == 'steel':
-            normalized = f"Ống thép - DN{diameter}"
+        # Map pipe_type to proper Vietnamese name
+        pipe_name_map = {
+            'hdpe': 'HDPE',
+            'pvc': 'PVC',
+            'ppr': 'PPR',
+            'steel': 'thép',
+            'steel_galvanized': 'thép mạ kẽm',
+            'steel_black': 'thép đen',
+            'ttk': 'TTK',
+            'conduit': 'luồn dây',
+        }
+
+        pipe_material = pipe_name_map.get(pipe_type, pipe_type.upper())
+
+        if pipe_type in ['steel', 'steel_galvanized', 'steel_black']:
+            normalized = f"Ống {pipe_material} - DN{diameter}"
         elif pipe_type == 'conduit':
             normalized = f"Ống luồn dây - D{diameter}"
         else:
-            parts = [f"Ống {pipe_name}", f"D{diameter}"]
+            parts = [f"Ống {pipe_material}", f"D{diameter}"]
             if pressure:
                 parts.append(pressure)
             normalized = ' - '.join(parts)

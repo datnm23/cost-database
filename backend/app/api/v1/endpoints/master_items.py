@@ -7,10 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.master_work_item import MasterWorkItem
+from app.models.line_item import LineItem
 from app.services.master_data_service import MasterDataService
 from app.services.work_code_generator import WorkCodeGenerator
 from app.services.boq_processing_service import get_boq_processing_service
 from app.services.boq_export_service import get_boq_export_service
+from app.services.master_database_builder import (
+    MasterDatabaseBuilder,
+    BuildConfig,
+    get_master_database_builder,
+)
 
 router = APIRouter()
 
@@ -127,6 +133,91 @@ class MatchItemResponse(BaseModel):
     master_work_code: Optional[str] = None
     needs_review: bool
     suggested_matches: Optional[List[dict]] = None
+
+
+class MasterBuildBatchRequest(BaseModel):
+    """Request for batch master database build (3-step pipeline)"""
+    file_ids: List[int] = Field(..., min_length=1)
+    project_id: Optional[int] = None
+    pareto_threshold: float = Field(0.80, ge=0.0, le=1.0)
+    clustering_threshold: float = Field(0.85, ge=0.5, le=1.0)
+    min_frequency: int = Field(1, ge=1)
+    auto_approve: bool = False
+    clear_existing: bool = False
+    include_only_pareto: bool = False
+
+
+class StepStatsResponse(BaseModel):
+    input_count: int
+    output_count: int
+    details: dict
+
+
+class MasterBuildBatchResponse(BaseModel):
+    """Response from batch master database build"""
+    step1_aggregation: StepStatsResponse
+    step2_standardization: StepStatsResponse
+    step3_coding_tagging: StepStatsResponse
+    total_master_added: int
+    total_pending: int
+    total_quarantined: int
+    total_updated: int
+    total_synonyms_added: int
+
+
+class AggregationPreviewItem(BaseModel):
+    description: str
+    unit: Optional[str]
+    frequency: int
+    source_file_count: int
+
+
+class AggregationPreviewResponse(BaseModel):
+    """Preview response for step 1 aggregation"""
+    total_unique_descriptions: int
+    total_line_items: int
+    top_items: List[AggregationPreviewItem]
+    frequency_distribution: dict
+    estimated_pareto_count: int
+
+
+class MatchAcceptItem(BaseModel):
+    """Single accepted match item"""
+    line_item_id: int
+    description: str
+    matched_master_id: Optional[int]
+    match_similarity: Optional[float]
+    sec_code: Optional[str]
+
+
+class MatchAcceptResponse(BaseModel):
+    """Response from accepting exact matches"""
+    accepted_count: int
+    items: List[MatchAcceptItem]
+
+
+class FuzzyReviewItem(BaseModel):
+    """Single fuzzy match item for review"""
+    line_item_id: int
+    description: str
+    normalized_description: Optional[str]
+    matched_master_id: Optional[int]
+    matched_master_description: Optional[str]
+    match_similarity: Optional[float]
+    sec_code: Optional[str]
+
+
+class FuzzyReviewResponse(BaseModel):
+    """Response from reviewing fuzzy matches"""
+    pending_count: int
+    items: List[FuzzyReviewItem]
+
+
+class AcceptMatchResponse(BaseModel):
+    """Response from accepting a single match"""
+    line_item_id: int
+    accepted: bool
+    message: str
 
 
 # ==============================================
@@ -615,6 +706,131 @@ def match_single_description(
     }
 
 
+@router.post("/build-master-batch", response_model=MasterBuildBatchResponse)
+def build_master_batch(
+    data: MasterBuildBatchRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute full 3-step master database build from multiple BOQ files.
+
+    Steps:
+    1. **Aggregation**: Scan line_items grouped by (description, unit), count frequency
+    2. **Standardization**: Normalize, cluster similar descriptions, elect canonical names, apply Pareto
+    3. **Coding & Tagging**: Classify SEC, extract specs, generate work codes, validate, persist
+
+    Suitable for small-to-medium batches (synchronous).
+    """
+    builder = get_master_database_builder(db)
+    config = BuildConfig(
+        pareto_threshold=data.pareto_threshold,
+        clustering_threshold=data.clustering_threshold,
+        min_frequency=data.min_frequency,
+        auto_approve=data.auto_approve,
+        clear_existing=data.clear_existing,
+        include_only_pareto=data.include_only_pareto,
+    )
+
+    result = builder.build(file_ids=data.file_ids, config=config)
+
+    return {
+        "step1_aggregation": {
+            "input_count": result.step1_stats.input_count,
+            "output_count": result.step1_stats.output_count,
+            "details": result.step1_stats.details,
+        },
+        "step2_standardization": {
+            "input_count": result.step2_stats.input_count,
+            "output_count": result.step2_stats.output_count,
+            "details": result.step2_stats.details,
+        },
+        "step3_coding_tagging": {
+            "input_count": result.step3_stats.input_count,
+            "output_count": result.step3_stats.output_count,
+            "details": result.step3_stats.details,
+        },
+        "total_master_added": result.total_master_added,
+        "total_pending": result.total_pending,
+        "total_quarantined": result.total_quarantined,
+        "total_updated": result.total_updated,
+        "total_synonyms_added": result.total_synonyms_added,
+    }
+
+
+@router.post("/build-master-batch/preview", response_model=AggregationPreviewResponse)
+def preview_master_batch(
+    data: MasterBuildBatchRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Preview step 1 (aggregation only) without modifying the database.
+
+    Returns:
+    - Top items by frequency
+    - Frequency distribution
+    - Estimated Pareto count (how many items cover 80% of total frequency)
+    """
+    builder = get_master_database_builder(db)
+    aggregated = builder.step1_aggregate(
+        file_ids=data.file_ids,
+        min_frequency=data.min_frequency,
+    )
+
+    if not aggregated:
+        return {
+            "total_unique_descriptions": 0,
+            "total_line_items": 0,
+            "top_items": [],
+            "frequency_distribution": {},
+            "estimated_pareto_count": 0,
+        }
+
+    total_line_items = sum(a.frequency for a in aggregated)
+
+    # Top 50 items
+    top_items = [
+        {
+            "description": a.representative_description,
+            "unit": a.unit,
+            "frequency": a.frequency,
+            "source_file_count": len(a.source_file_ids),
+        }
+        for a in aggregated[:50]
+    ]
+
+    # Frequency distribution buckets
+    freq_dist = {"1": 0, "2-5": 0, "6-10": 0, "11-50": 0, "50+": 0}
+    for a in aggregated:
+        if a.frequency == 1:
+            freq_dist["1"] += 1
+        elif a.frequency <= 5:
+            freq_dist["2-5"] += 1
+        elif a.frequency <= 10:
+            freq_dist["6-10"] += 1
+        elif a.frequency <= 50:
+            freq_dist["11-50"] += 1
+        else:
+            freq_dist["50+"] += 1
+
+    # Estimate Pareto count
+    target = total_line_items * data.pareto_threshold
+    cumulative = 0
+    pareto_count = 0
+    for a in aggregated:
+        cumulative += a.frequency
+        pareto_count += 1
+        if cumulative >= target:
+            break
+
+    return {
+        "total_unique_descriptions": len(aggregated),
+        "total_line_items": total_line_items,
+        "top_items": top_items,
+        "frequency_distribution": freq_dist,
+        "estimated_pareto_count": pareto_count,
+    }
+
+
 @router.get("/process-boq/{file_id}/export")
 def export_processing_result(
     file_id: int,
@@ -778,3 +994,115 @@ def export_with_original_format(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==============================================
+# Auto-assign match endpoints
+# ==============================================
+
+@router.post("/process-boq/{file_id}/accept-exact-matches", response_model=MatchAcceptResponse)
+def accept_exact_matches(
+    file_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Accept all exact matches (≥95% similarity) for a BOQ file.
+
+    Queries line_items with match_type='exact' and needs_review=False,
+    and returns the list of accepted items.
+    """
+    items = db.query(LineItem).filter(
+        LineItem.file_id == file_id,
+        LineItem.match_type == 'exact',
+        LineItem.needs_review == False,
+        LineItem.matched_master_id.isnot(None),
+    ).all()
+
+    result_items = []
+    for li in items:
+        result_items.append(MatchAcceptItem(
+            line_item_id=li.line_item_id,
+            description=li.description or '',
+            matched_master_id=li.matched_master_id,
+            match_similarity=float(li.match_similarity) if li.match_similarity else None,
+            sec_code=li.sec_code,
+        ))
+
+    return MatchAcceptResponse(
+        accepted_count=len(result_items),
+        items=result_items,
+    )
+
+
+@router.post("/process-boq/{file_id}/review-fuzzy-matches", response_model=FuzzyReviewResponse)
+def review_fuzzy_matches(
+    file_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get all fuzzy matches (80-95% similarity) that need manual review.
+
+    Returns pending items with match details for user review.
+    """
+    items = db.query(LineItem).filter(
+        LineItem.file_id == file_id,
+        LineItem.match_type == 'fuzzy',
+        LineItem.needs_review == True,
+    ).all()
+
+    result_items = []
+    for li in items:
+        # Get matched master description if available
+        master_desc = None
+        if li.matched_master_id:
+            master = db.query(MasterWorkItem).filter(
+                MasterWorkItem.master_id == li.matched_master_id
+            ).first()
+            if master:
+                master_desc = master.description
+
+        result_items.append(FuzzyReviewItem(
+            line_item_id=li.line_item_id,
+            description=li.description or '',
+            normalized_description=li.normalized_description,
+            matched_master_id=li.matched_master_id,
+            matched_master_description=master_desc,
+            match_similarity=float(li.match_similarity) if li.match_similarity else None,
+            sec_code=li.sec_code,
+        ))
+
+    return FuzzyReviewResponse(
+        pending_count=len(result_items),
+        items=result_items,
+    )
+
+
+@router.post("/process-boq/accept-match/{line_item_id}", response_model=AcceptMatchResponse)
+def accept_single_match(
+    line_item_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Accept an individual fuzzy match, setting needs_review=False.
+    """
+    li = db.query(LineItem).filter(
+        LineItem.line_item_id == line_item_id,
+    ).first()
+
+    if not li:
+        raise HTTPException(status_code=404, detail="Line item not found")
+
+    if li.match_type != 'fuzzy':
+        raise HTTPException(
+            status_code=400,
+            detail=f"Line item match_type is '{li.match_type}', expected 'fuzzy'",
+        )
+
+    li.needs_review = False
+    db.commit()
+
+    return AcceptMatchResponse(
+        line_item_id=line_item_id,
+        accepted=True,
+        message="Fuzzy match accepted successfully",
+    )

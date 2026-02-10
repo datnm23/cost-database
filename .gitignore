@@ -58,6 +58,14 @@ backend/models/*
 !backend/models/.gitkeep
 backend/logs/*
 !backend/logs/.gitkeep
+backend/output/
+backend/test_output/
+
+# Generated test/report artifacts
+backend/real_boq_*
+backend/test_comparison_results.json
+.~lock.*
+.fuse_hidden*
 
 # Database
 *.db

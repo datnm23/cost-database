@@ -142,6 +142,9 @@ class BOQProcessingService:
 
         logger.info(f"Step 4: Matching results - Exact: {len(exact_matches)}, Fuzzy: {len(fuzzy_matches)}, New: {len(new_items)}")
 
+        # Step 4b: Persist match results to line_items table
+        self._persist_match_results(file_id, match_results)
+
         # Step 5: Dedupe new items (by normalized name)
         unique_new_items = self._dedupe_new_items(new_items)
         new_items_deduped = len(unique_new_items)
@@ -511,6 +514,80 @@ class BOQProcessingService:
 
         return unique
 
+    def _persist_match_results(self, file_id: int, match_results: List[MatchResult]):
+        """
+        Persist match results back to line_items table.
+
+        For each match result, find matching line_items by description and update:
+        - exact (≥95%): matched_master_id, match_type='exact', similarity, needs_review=False
+        - fuzzy (80-95%): matched_master_id, match_type='fuzzy', similarity, needs_review=True
+        - none (<80%): match_type='none', needs_review=False
+        """
+        if not match_results:
+            return
+
+        # Build a lookup from original_description to match result
+        desc_to_result = {}
+        for mr in match_results:
+            desc_to_result[mr.original_description.strip()] = mr
+
+        # Load all line items for this file
+        line_items = self.db.query(LineItem).filter(
+            LineItem.file_id == file_id,
+            LineItem.description.isnot(None),
+            LineItem.description != '',
+        ).all()
+
+        # Classify SEC codes for items that have a match
+        sec_codes = {}
+        try:
+            from app.services.classifier_service import get_classifier
+            classifier = get_classifier()
+            for mr in match_results:
+                desc = mr.normalized_description or mr.original_description
+                results = classifier.classify(desc, top_k=1)
+                if results and results[0][1] >= 70.0:
+                    sec_codes[mr.original_description.strip()] = results[0][0]
+        except Exception as e:
+            logger.warning(f"ClassifierService unavailable for SEC classification: {e}")
+
+        updated = 0
+        for li in line_items:
+            desc_key = li.description.strip() if li.description else ''
+            mr = desc_to_result.get(desc_key)
+            if mr is None:
+                continue
+
+            if mr.match_type == 'exact' and mr.similarity_score >= EXACT_MATCH_THRESHOLD:
+                li.matched_master_id = mr.master_item.master_id if mr.master_item else None
+                li.match_type = 'exact'
+                li.match_similarity = round(mr.similarity_score * 100, 2)
+                li.needs_review = False
+            elif mr.match_type == 'fuzzy' and mr.similarity_score >= FUZZY_MATCH_THRESHOLD:
+                li.matched_master_id = mr.master_item.master_id if mr.master_item else None
+                li.match_type = 'fuzzy'
+                li.match_similarity = round(mr.similarity_score * 100, 2)
+                li.needs_review = True
+            else:
+                li.match_type = 'none'
+                li.matched_master_id = None
+                li.needs_review = False
+
+            # Set normalized description
+            if mr.normalized_description:
+                li.normalized_description = mr.normalized_description
+
+            # Set SEC code from classifier
+            sec = sec_codes.get(desc_key)
+            if sec:
+                li.sec_code = sec
+
+            updated += 1
+
+        if updated > 0:
+            self.db.flush()
+            logger.info(f"Persisted match results for {updated} line items (file_id={file_id})")
+
     def _add_to_master(self, file_id: int, items: List[MatchResult]):
         """
         Thêm công tác mới vào Master database với mã mới
@@ -587,9 +664,20 @@ class BOQProcessingService:
 
     def _create_master_item(self, file_id: int, item: MatchResult):
         """Create a new master item from approved MatchResult"""
+        # Classify SEC code using ClassifierService
+        sec_code = 'UNCLASSIFIED'
+        try:
+            from app.services.classifier_service import get_classifier
+            classifier = get_classifier()
+            results = classifier.classify(item.normalized_description, top_k=1)
+            if results and results[0][1] >= 70.0:
+                sec_code = results[0][0]
+        except Exception as e:
+            logger.warning(f"ClassifierService unavailable, using UNCLASSIFIED: {e}")
+
         work_code = self.code_generator.generate_work_code(
             description=item.normalized_description,
-            sec_code=None,
+            sec_code=sec_code if sec_code != 'UNCLASSIFIED' else None,
             unit=None
         )
 
@@ -601,7 +689,7 @@ class BOQProcessingService:
             work_code=work_code,
             description=item.normalized_description,
             description_normalized=desc_normalized,
-            sec_code='UNCLASSIFIED',
+            sec_code=sec_code,
             unit_standard='',
             occurrence_count=1,
             source_files=json.dumps([file_id]),

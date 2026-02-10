@@ -1,12 +1,18 @@
 """
 Normalization Orchestrator - Coordinates Multiple Normalizers
 
-Resolves normalizer conflicts and enables MEP/Traffic specialization.
-Priority-based delegation with hybrid detection:
+Implements the "Sandwich Hybrid" architecture:
 
+Pipeline:
+1. Pre-processing (strip verbs, extract location)
+2. Subtract-Back Algorithm (SPEC → MATERIAL → OBJECT)
+3. AI Semantic (only when confidence < 70%)
+4. Post-validation & Assembly (enforce 3-component structure)
+
+Priority-based delegation with hybrid detection:
 1. Traffic detection → TrafficEquipmentNormalizer
 2. MEP detection → MEPEquipmentNormalizer
-3. Fallback → DescriptionNormalizer
+3. Fallback → DescriptionNormalizer with SubtractBackExtractor
 
 Also handles hybrid items (construction work + specialized specs):
 - "Đào rãnh lắp ống HDPE D110" → HYBRID (earthwork + MEP pipe specs)
@@ -37,9 +43,15 @@ from app.services.abbreviation_expander import (
     AbbreviationExpander,
     get_abbreviation_expander
 )
+from app.services.subtract_back_extractor import (
+    SubtractBackExtractor,
+    ExtractedComponents
+)
 
 logger = logging.getLogger(__name__)
 
+# AI confidence threshold - below this, use AI enhancement
+AI_CONFIDENCE_THRESHOLD = 0.7
 
 # Construction verbs that indicate hybrid items
 CONSTRUCTION_VERBS = [
@@ -58,9 +70,11 @@ class NormalizationOrchestrator:
     """
     Orchestrator for coordinating multiple normalizers.
 
-    Provides priority-based delegation and hybrid detection to ensure
-    MEP and Traffic items are properly handled with specialized normalizers
-    while still supporting general construction descriptions.
+    Implements the Sandwich Hybrid architecture:
+    1. Pre-processing (Python rule-base)
+    2. Subtract-Back Algorithm (SPEC → MATERIAL → OBJECT)
+    3. AI Semantic (only when confidence < 70%)
+    4. Post-validation & Assembly (enforce 3-component structure)
     """
 
     def __init__(self, enable_ai: bool = False):
@@ -68,25 +82,25 @@ class NormalizationOrchestrator:
         Initialize the orchestrator.
 
         Args:
-            enable_ai: Enable AI-enhanced normalization (future feature)
+            enable_ai: Enable AI-enhanced normalization
         """
         self.description_normalizer = DescriptionNormalizer()
         self.traffic_normalizer = get_traffic_normalizer()
         self.mep_normalizer = get_mep_normalizer()
         self.abbreviation_expander = get_abbreviation_expander()
+        self.subtract_back = SubtractBackExtractor()
         self.enable_ai = enable_ai
 
     def normalize(self, description: str) -> NormalizationResult:
         """
-        Main normalization method with priority-based delegation.
+        Main normalization method using Sandwich Hybrid architecture.
 
-        Priority:
-        1. If traffic equipment → TrafficEquipmentNormalizer
-        2. If MEP equipment → MEPEquipmentNormalizer
-        3. Else → DescriptionNormalizer
-
-        Also handles hybrid items that combine construction work with
-        specialized specs (e.g., "Đào rãnh lắp ống HDPE D110").
+        Pipeline:
+        1. Pre-processing (strip verbs, expand abbreviations)
+        2. Subtract-Back extraction (SPEC → MATERIAL → OBJECT)
+        3. Priority delegation (Traffic → MEP → General)
+        4. AI enhancement (only if confidence < 70%)
+        5. Post-validation (enforce 3-component structure)
 
         Args:
             description: Raw description from BOQ
@@ -109,13 +123,84 @@ class NormalizationOrchestrator:
         expansion_result = self.abbreviation_expander.expand(original)
         expanded = expansion_result.expanded
 
-        # Step 2: Analyze for hybrid patterns
+        # Step 2: Subtract-Back extraction for component analysis
+        components = self.subtract_back.extract(expanded)
+
+        # Step 3: Analyze for hybrid patterns
         hybrid = self._analyze_hybrid(expanded)
 
-        # Step 3: Normalize with priority delegation
-        result = self._normalize_with_priority(expanded, original, hybrid)
+        # Step 4: Normalize with priority delegation
+        result = self._normalize_with_priority(expanded, original, hybrid, components)
+
+        # Step 5: AI enhancement if confidence is low and AI is enabled
+        if self.enable_ai and result.confidence < AI_CONFIDENCE_THRESHOLD * 100:
+            ai_result = self._ai_enhance(expanded, result, components)
+            if ai_result:
+                result = ai_result
+
+        # Step 6: Post-validation - enforce 3-component structure
+        result = self._post_validate(result)
 
         return result
+
+    def _post_validate(self, result: NormalizationResult) -> NormalizationResult:
+        """
+        Post-validation to enforce 3-component structure.
+
+        Ensures output has max 2 dashes (3 components).
+        """
+        normalized = result.normalized
+        if not normalized:
+            return result
+
+        dash_count = normalized.count(' - ')
+        if dash_count > 2:
+            # Merge excess components into 3 parts
+            parts = normalized.split(' - ')
+            if len(parts) > 3:
+                normalized = f"{parts[0]} - {' '.join(parts[1:-1])} - {parts[-1]}"
+                result.normalized = normalized
+
+        return result
+
+    def _ai_enhance(
+        self,
+        expanded: str,
+        result: NormalizationResult,
+        components: ExtractedComponents
+    ) -> Optional[NormalizationResult]:
+        """
+        AI enhancement for low-confidence results.
+
+        Only called when confidence < 70%.
+        """
+        try:
+            from app.services.ai_normalizer import get_ai_normalizer, NormalizationResult as AIResult
+
+            ai_normalizer = get_ai_normalizer()
+            if not ai_normalizer.ai_enabled:
+                return None
+
+            ai_result = ai_normalizer.normalize(expanded, use_ai=True)
+            if ai_result.ai_enhanced:
+                return NormalizationResult(
+                    original=result.original,
+                    normalized=ai_result.normalized,
+                    work_category=self._map_work_category(ai_result.work_category),
+                    confidence=ai_result.confidence,
+                    normalizer_used=NormalizerType.AI,
+                    is_hybrid=result.is_hybrid,
+                    specs=result.specs,
+                    components=result.components,
+                    ai_enhanced=True,
+                    location=result.location
+                )
+        except ImportError:
+            logger.debug("AI normalizer not available")
+        except Exception as e:
+            logger.warning(f"AI enhancement failed: {e}")
+
+        return None
 
     def _analyze_hybrid(self, text: str) -> HybridAnalysis:
         """
@@ -247,7 +332,8 @@ class NormalizationOrchestrator:
         self,
         expanded: str,
         original: str,
-        hybrid: HybridAnalysis
+        hybrid: HybridAnalysis,
+        subtract_components: ExtractedComponents
     ) -> NormalizationResult:
         """
         Apply normalizers with priority delegation.
@@ -255,7 +341,7 @@ class NormalizationOrchestrator:
         Priority:
         1. Traffic equipment (signs, markers, posts)
         2. MEP equipment (pipes, cables, electrical)
-        3. General description normalizer
+        3. General description normalizer (with subtract-back components)
         """
         text_lower = expanded.lower()
 
@@ -269,10 +355,13 @@ class NormalizationOrchestrator:
                     expanded=expanded,
                     specialized_result=traffic_result,
                     hybrid=hybrid,
-                    normalizer_type=NormalizerType.TRAFFIC
+                    normalizer_type=NormalizerType.TRAFFIC,
+                    subtract_components=subtract_components
                 )
 
-            return self._convert_traffic_result(original, traffic_result)
+            result = self._convert_traffic_result(original, traffic_result)
+            result.location = subtract_components.location
+            return result
 
         # Priority 2: MEP equipment
         if self.mep_normalizer.is_mep_equipment(expanded):
@@ -284,20 +373,44 @@ class NormalizationOrchestrator:
                     expanded=expanded,
                     specialized_result=mep_result,
                     hybrid=hybrid,
-                    normalizer_type=NormalizerType.MEP
+                    normalizer_type=NormalizerType.MEP,
+                    subtract_components=subtract_components
                 )
 
-            return self._convert_mep_result(original, mep_result)
+            result = self._convert_mep_result(original, mep_result)
+            result.location = subtract_components.location
+            return result
 
-        # Priority 3: General description normalizer
+        # Priority 3: General description normalizer with subtract-back enhancement
+        # Check if subtract-back has high confidence
+        if subtract_components.confidence >= AI_CONFIDENCE_THRESHOLD:
+            # Use subtract-back assembled output
+            normalized = self.subtract_back.assemble_output(subtract_components)
+            if normalized:
+                category = self._map_work_category(
+                    self.description_normalizer.identify_work_category(expanded)
+                )
+                return NormalizationResult(
+                    original=original,
+                    normalized=normalized,
+                    work_category=category,
+                    confidence=subtract_components.confidence * 100,
+                    normalizer_used=NormalizerType.DESCRIPTION,
+                    is_hybrid=False,
+                    components=subtract_components.to_dict(),
+                    specs=self._extract_specs_from_subtract_components(subtract_components),
+                    location=subtract_components.location
+                )
+
+        # Fallback: Use description normalizer
         desc_result = self.description_normalizer.normalize(expanded)
         category = self._map_work_category(
             self.description_normalizer.identify_work_category(expanded)
         )
         components = self.description_normalizer.parse_description(expanded)
 
-        # Extract location for Standard Naming Strategy
-        _, location = self.description_normalizer.extract_location(expanded)
+        # Extract location using subtract-back result
+        location = subtract_components.location
 
         return NormalizationResult(
             original=original,
@@ -310,6 +423,35 @@ class NormalizationOrchestrator:
             specs=self._extract_specs_from_components(components),
             location=location
         )
+
+    def _extract_specs_from_subtract_components(
+        self,
+        components: ExtractedComponents
+    ) -> Dict[str, Any]:
+        """Extract specs from SubtractBackExtractor components."""
+        specs = {}
+
+        if components.specs:
+            for spec in components.specs:
+                # Parse dimension specs like "D16", "600x600"
+                if spec.startswith('D') and spec[1:].isdigit():
+                    specs['diameter'] = spec[1:]
+                elif spec.startswith('M') and spec[1:].isdigit():
+                    specs['grade'] = spec
+                elif spec.startswith('PN') and spec[2:].isdigit():
+                    specs['pressure'] = spec
+                elif 'x' in spec.lower():
+                    specs['dimensions'] = spec
+                else:
+                    specs.setdefault('other', []).append(spec)
+
+        if components.material:
+            specs['material'] = components.material
+
+        if components.pressure_rating:
+            specs['pressure'] = components.pressure_rating
+
+        return specs
 
     def _convert_mep_result(
         self,
@@ -352,7 +494,8 @@ class NormalizationOrchestrator:
         expanded: str,
         specialized_result,
         hybrid: HybridAnalysis,
-        normalizer_type: NormalizerType
+        normalizer_type: NormalizerType,
+        subtract_components: Optional[ExtractedComponents] = None
     ) -> NormalizationResult:
         """
         Create a hybrid result combining construction work with specialized specs.
@@ -381,6 +524,11 @@ class NormalizationOrchestrator:
             base_confidence *= 100  # Convert to 0-100 scale
         hybrid_confidence = base_confidence * 0.95  # Slight penalty for hybrid
 
+        # Get location from subtract_components if available
+        location = None
+        if subtract_components:
+            location = subtract_components.location
+
         return NormalizationResult(
             original=original,
             normalized=specialized_result.normalized,
@@ -390,7 +538,8 @@ class NormalizationOrchestrator:
             normalizer_used=NormalizerType.HYBRID,
             is_hybrid=True,
             specs=merged_specs,
-            components=components
+            components=components,
+            location=location
         )
 
     def _map_work_category(self, category_str: str) -> WorkCategory:

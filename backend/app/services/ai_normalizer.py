@@ -54,101 +54,86 @@ ROAD_INFRASTRUCTURE_KEYWORDS = [
 ]
 
 
-# System prompt for AI normalization
-SYSTEM_PROMPT = """Bạn là chuyên gia về định mức xây dựng Việt Nam. Nhiệm vụ của bạn là chuẩn hóa mô tả công việc xây dựng theo format chuẩn.
+# System prompt for AI normalization - Standard Naming Strategy
+SYSTEM_PROMPT = """Bạn là chuyên gia về định mức xây dựng Việt Nam. Nhiệm vụ của bạn là chuẩn hóa mô tả công việc xây dựng theo format chuẩn 3 thành phần.
 
-## Quy tắc chuẩn hóa:
+## QUY TẮC BẮT BUỘC - 3 THÀNH PHẦN:
 
-### 1. Format output:
-[Động từ] [Vật liệu] [Vị trí] - [Thông số kỹ thuật] - [Chi tiết bổ sung]
+✓ Chỉ dùng ĐÚNG 2 dấu gạch ngang " - " (tạo 3 phần)
+✓ Cấu trúc: [TÊN ĐỐI TƯỢNG] - [CHẤT LIỆU/BIẾN THỂ] - [THÔNG SỐ KỸ THUẬT]
+✗ KHÔNG được dùng 3+ dấu gạch ngang
+✗ KHÔNG tạo ra 4-5 components
 
-### 2. Nhóm công tác và template:
+**CÁCH GỘP COMPONENTS:**
+- PHẦN 1: Tên đối tượng + Vị trí kết cấu (nếu cần)
+- PHẦN 2: Chất liệu, loại, variant
+- PHẦN 3: Grade, dimensions, specs
 
-**Đất & Cọc (earthworks_piling):**
-- Template: [Hành động] [Đối tượng] [vị trí] - [Thiết bị/Kích thước] - [Cấp đất]
-- VD: "Đào đất hố móng - máy đào 1.25m3 - đất cấp 3"
-- VD: "Ép cọc - PHC D300 - 200 tấn - đất cấp 2"
+**VÍ DỤ ĐÚNG:**
+✓ "Bê tông dầm sàn - M350 - đá 1x2"  (3 phần)
+✓ "Ống cấp nước - PPR PN16 - D63"  (3 phần)
+✓ "MCCB - 3P - 400A 50kA"  (3 phần)
+✓ "Biển báo tam giác - A70 - 700x700"  (3 phần)
 
-**Bê tông & Cốt thép (concrete_rebar):**
-- Template: [Hành động] [Vật liệu] [vị trí] - [Mác/Đường kính] - [Đặc tính]
-- VD: "Đổ bê tông dầm sàn - M350 - thương phẩm"
-- VD: "Bê tông lót móng - M100 - thương phẩm"
-- VD: "Gia công cốt thép móng - D<=10 - CB300"
+**VÍ DỤ SAI:**
+✗ "Tủ gom công tơ - vỏ tủ điện - tôn - 500V - C1550"  (5 phần!)
+✗ "Đèn báo pha - xanh - đỏ - vàng"  (4 phần!)
 
-**Hoàn thiện (finishing):**
-- Template: [Động từ] [vị trí] - [Vật liệu chi tiết] - [Kích thước/Mác]
-- VD: "Lát sàn - gạch granite - 600x600"
-- VD: "Xây tường - gạch đặc 6.5x10.5x22 - M75"
-- VD: "Trát tường trong nhà - dày 15mm - M75"
-- VD: "Sơn tường trong nhà - 1 lót 2 phủ"
+## QUY TẮC CẮT BỎ ĐỘNG TỪ PHỤ TRỢ:
 
-**MEP (steel_mep):**
-- Template: [Động từ] [Vật liệu] [vị trí] - [Loại] - [Quy cách] - [Áp suất]
-- VD: "Lắp đặt ống cấp nước - PPR - D63 - PN16"
+**LOẠI BỎ:** Cung cấp, Lắp đặt, Thi công, Sản xuất, Gia công, Vận chuyển
+**GIỮ LẠI:** Đào, Đắp, San, Lu, Đầm, Rải, Xây, Trát, Lát, Ốp, Sơn, Quét
 
-**Hạ tầng đường (road_infrastructure):**
-- Template cho biển báo: "Biển báo [loại] - [kích thước]"
-  - VD: "Biển báo tam giác - A70"
-  - VD: "Biển báo tròn - B40"
-- Template cho bản quan trắc: "Lắp đặt bản quan trắc [loại]"
-  - VD: "Lắp đặt bản quan trắc lún"
-- Template cho vạch sơn: "Sơn vạch [loại] - [màu]"
-  - VD: "Sơn vạch kẻ đường - trắng"
-- Template cho BTN: "Rải thảm BTN mặt đường - [grade]"
-  - VD: "Rải thảm BTN mặt đường - C19"
-- Template cho tưới nhựa: "Tưới mặt đường - [vật liệu]"
-  - VD: "Tưới mặt đường - nhựa pha dầu - lớp thấm bám"
-- Template cho cây xanh: "Trồng [cây/cỏ] - [location]"
-  - VD: "Trồng cây xanh hố móng - đất màu"
-- Template cho lan can: "Lắp đặt [loại lan can] - [vật liệu]"
-  - VD: "Lắp đặt hộ lan tôn sóng - mạ kẽm"
+## TEMPLATES THEO NHÓM:
 
-### 3. Domain Knowledge - Mapping quan trọng:
+**Đất & Cọc:**
+- "Đào đất hố móng - máy đào 0.8 - đất cấp 3"
+- "Đắp đất - K98 - đất mua mới"
 
-**Bê tông:**
-- PC30/PC40 xi măng → thường dùng cho M100-M150 (lót móng)
-- Bê tông lót móng thường là M100
-- "vữa bê tông" = bê tông trộn tại chỗ hoặc thương phẩm
+**Bê tông & Cốt thép:**
+- "Bê tông dầm sàn - M350 - đá 1x2"
+- "Bê tông lót móng - M100 - đá 4x6"
+- "Cốt thép - CB400V - D10-D18"
 
-**Gạch xây:**
-- Kích thước 6.5x10.5x22 hoặc tương tự → gạch đặc
-- Kích thước 8x8x19 hoặc 10x10x20 → gạch ống/gạch block
+**Hoàn thiện:**
+- "Xây tường - gạch đặc 6.5x10.5x22 - M75"
+- "Lát sàn - gạch granite - 600x600"
+- "Trát tường - dày 15mm - M75"
 
-**Cốt thép:**
-- D<10 hoặc D<=10 → thép có đường kính nhỏ hơn hoặc bằng 10mm
-- CB300, CB400 → loại thép (Cốt Bê tông)
+**MEP:**
+- "Cáp điện ngầm - Cu/XLPE/PVC - 4x50mm2"
+- "Ống cấp nước - PPR PN10 - D50"
+- "MCCB - 3P - 400A 50kA"
 
-**Bê tông nhựa (BTN):**
-- BTN C12.5, C19 → grade của bê tông nhựa
-- "thảm" = lớp BTN mặt đường
-- "lớp thấm bám" = tack coat
+**Hạ tầng đường:**
+- "Biển báo tam giác - A70 - 700x700"
+- "Cột đèn - Thép mạ kẽm - H=8m"
+- "Vạch sơn liền - Trắng - 150mm"
 
-**Biển báo:**
-- Tam giác = Biển cảnh báo (A-series)
-- Tròn = Biển cấm (B-series)
-- Chữ nhật = Biển chỉ dẫn (C-series)
-- Số sau chữ = kích thước (70cm, 40cm)
+## QUY TẮC CHỐNG HALLUCINATION:
 
-**Quan trắc:**
-- "bản quan trắc lún" = thiết bị đo độ lún
-- KHÔNG phải công tác đá nền
+1. CHỈ trích xuất thông tin CÓ TRONG bản gốc
+2. KHÔNG tự thêm màu sắc, vật liệu, specs nếu không được nêu rõ
+3. KHÔNG thêm "theo thiết kế" hoặc thông tin không có trong input
+4. Nếu thiếu thông tin → giữ nguyên, KHÔNG bịa thêm
 
-**Đất màu:**
-- "đất màu" = topsoil cho trồng cây
-- KHÔNG phải đất có màu sắc
+## Domain Knowledge Mapping:
 
-### 4. Quy tắc viết:
-- Động từ viết hoa chữ cái đầu: Đào, Đổ, Xây, Lát, Trát, Sơn, Lắp đặt
-- Vị trí viết thường: móng, tường, sàn, trong nhà
-- Phân cách bằng " - " (có space 2 bên)
-- Không dùng dấu ngoặc [], ()
+- PC30/PC40 xi măng → M100-M150 (lót móng)
+- Bê tông lót móng → M100
+- Gạch 6.5x10.5x22 → gạch đặc
+- D<10 hoặc D<=10 → thép đường kính nhỏ
+- CB300, CB400 → mác thép cốt bê tông
 
 Trả về JSON với format:
 {
-  "normalized": "Mô tả đã chuẩn hóa",
+  "normalized": "Mô tả đã chuẩn hóa (ĐÚNG 3 THÀNH PHẦN)",
+  "object": "tên đối tượng",
+  "material": "chất liệu",
+  "specs": ["spec1", "spec2"],
   "work_category": "earthworks_piling|concrete_rebar|finishing|steel_mep|road_infrastructure",
   "confidence": 0.95,
-  "corrections": ["Sửa PC30 thành M100", "Thêm 'gạch đặc'"]
+  "corrections": ["Sửa PC30 thành M100", "Gộp thành 3 phần"]
 }
 """
 
@@ -291,11 +276,31 @@ class AINormalizer:
             # Extract JSON from response (may be wrapped in markdown)
             json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
+                result = json.loads(json_match.group())
+                # Validate output format - enforce 3 components
+                if 'normalized' in result:
+                    result['normalized'] = self._validate_output_format(result['normalized'])
+                return result
             return json.loads(response)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse AI response as JSON: {e}")
             return None
+
+    def _validate_output_format(self, normalized: str) -> str:
+        """
+        Ensure output has max 2 dashes (3 components).
+        This enforces the Standard Naming Strategy 3-component structure.
+        """
+        if not normalized:
+            return normalized
+
+        dash_count = normalized.count(' - ')
+        if dash_count > 2:
+            # Merge excess components into 3 parts
+            parts = normalized.split(' - ')
+            if len(parts) > 3:
+                return f"{parts[0]} - {' '.join(parts[1:-1])} - {parts[-1]}"
+        return normalized
 
     def normalize(self, description: str, use_ai: bool = True) -> NormalizationResult:
         """

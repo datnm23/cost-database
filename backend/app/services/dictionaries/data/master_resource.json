@@ -1,0 +1,2775 @@
+{
+  "MCCB": {
+    "object_name": "MCCB",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "MCB": {
+    "object_name": "MCB",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "RCCB": {
+    "object_name": "RCCB",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "ACB": {
+    "object_name": "ACB",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Công tơ điện": {
+    "object_name": "Công tơ điện",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "current"
+    }
+  },
+  "Đèn báo pha": {
+    "object_name": "Đèn báo pha",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_colors"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "voltage"
+    }
+  },
+  "Đèn tín hiệu": {
+    "object_name": "Đèn tín hiệu",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_signal_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_signal_colors"
+    }
+  },
+  "Thanh cái": {
+    "object_name": "Thanh cái",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_busbar_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_busbar_specs"
+    }
+  },
+  "Cầu chì": {
+    "object_name": "Cầu chì",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Hạ thế"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_cau_chi_specs"
+    }
+  },
+  "Khóa chuyển mạch": {
+    "object_name": "Khóa chuyển mạch",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "switch_type",
+      "fallback": "Ampe"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "current"
+    }
+  },
+  "Công tắc": {
+    "object_name": "Công tắc",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_switch_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Công tắc hẹn giờ": {
+    "object_name": "Công tắc hẹn giờ",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Công tắc"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Hẹn giờ"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Công tắc nhiệt độ": {
+    "object_name": "Công tắc nhiệt độ",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Công tắc"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Nhiệt độ (Thermostat)"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Công tắc chọn": {
+    "object_name": "Công tắc chọn",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Công tắc"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Chọn vùng"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "RCBO": {
+    "object_name": "RCBO",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Chống sét": {
+    "object_name": "Chống sét",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Chống sét lan truyền": {
+    "object_name": "Chống sét lan truyền",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Chống sét lan truyền"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Máy biến áp": {
+    "object_name": "Máy biến áp",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Máy phát điện": {
+    "object_name": "Máy phát điện",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Máy điều hòa": {
+    "object_name": "Máy điều hòa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "ATS": {
+    "object_name": "ATS",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Tủ điều khiển ATS": {
+    "object_name": "Tủ điều khiển ATS",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Tủ điều khiển": {
+    "object_name": "Tủ điều khiển",
+    "extractor": "ElectricalExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "poles"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_electrical_specs"
+    }
+  },
+  "Quạt": {
+    "object_name": "Quạt",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Quạt hướng trục": {
+    "object_name": "Quạt hướng trục",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Quạt gắn tường": {
+    "object_name": "Quạt gắn tường",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Quạt gió thải": {
+    "object_name": "Quạt gió thải",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Quạt hút": {
+    "object_name": "Quạt hút",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Quạt thông gió": {
+    "object_name": "Quạt thông gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "Camera": {
+    "object_name": "Camera",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_camera_specs"
+    }
+  },
+  "Switch mạng": {
+    "object_name": "Switch mạng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_switch_network_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đầu ghi hình": {
+    "object_name": "Đầu ghi hình",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dvr_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Loa": {
+    "object_name": "Loa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    }
+  },
+  "UPS": {
+    "object_name": "UPS",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Tủ rack": {
+    "object_name": "Tủ rack",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_rack_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đồng hồ đa năng": {
+    "object_name": "Đồng hồ đa năng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_accuracy_class"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_protocol"
+    }
+  },
+  "Đồng hồ điện": {
+    "object_name": "Đồng hồ điện",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đồng hồ đo dòng": {
+    "object_name": "Đồng hồ đo dòng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_ct_ratio"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đồng hồ đo áp": {
+    "object_name": "Đồng hồ đo áp",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_power"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Hộp đấu nối quang": {
+    "object_name": "Hộp đấu nối quang",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_junction_box_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Hộp nối cáp": {
+    "object_name": "Hộp nối cáp",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Máng cáp": {
+    "object_name": "Máng cáp",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_cable_tray_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Miệng gió": {
+    "object_name": "Miệng gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Ống gió": {
+    "object_name": "Ống gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_duct_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    }
+  },
+  "Fire Damper": {
+    "object_name": "Fire Damper",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Chuyển vuông tròn": {
+    "object_name": "Chuyển vuông tròn",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_duct_material"
+    }
+  },
+  "Gót giày ống gió": {
+    "object_name": "Gót giày ống gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_duct_material"
+    }
+  },
+  "Co ống gió": {
+    "object_name": "Co ống gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_duct_material"
+    }
+  },
+  "Giảm ống gió": {
+    "object_name": "Giảm ống gió",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dimensions_wxh"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_duct_material"
+    }
+  },
+  "Ống GI": {
+    "object_name": "Ống GI",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Ống GI"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Mạ kẽm"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống Inox": {
+    "object_name": "Ống Inox",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Ống Inox"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Inox"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống đồng": {
+    "object_name": "Ống đồng",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Ống đồng"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Đồng"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Tủ điện": {
+    "object_name": "Tủ điện",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "type"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "current"
+    }
+  },
+  "Tủ gom công tơ": {
+    "object_name": "Tủ gom công tơ",
+    "output_object": "Tủ điện",
+    "part1": {
+      "source": "fixed",
+      "key": "Tủ điện"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Tủ gom công tơ"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": ""
+    }
+  },
+  "Đào đất": {
+    "object_name": "Đào đất",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "soil_type",
+      "fallback": "Đất cấp 3"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_dao_context"
+    }
+  },
+  "Đào": {
+    "object_name": "Đào",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "soil_type",
+      "fallback": "Đất cấp 3"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_dao_context"
+    }
+  },
+  "Đào khuôn đường": {
+    "object_name": "Đào khuôn đường",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "soil_class",
+      "fallback": "Đất cấp 3"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "method",
+      "fallback": "Máy/Thủ công"
+    }
+  },
+  "Đào phá dỡ": {
+    "object_name": "Đào phá dỡ",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_dao_pha_do_context"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_dao_pha_do_position"
+    }
+  },
+  "Đắp đất": {
+    "object_name": "Đắp đất",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "compaction",
+      "fallback": "Đất K95"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "determine_earth_source"
+    }
+  },
+  "Đắp đất nền": {
+    "object_name": "Đắp đất nền",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "compaction",
+      "fallback": "Đất K95"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "determine_earth_source"
+    }
+  },
+  "Đắp đất hoàn trả": {
+    "object_name": "Đắp đất hoàn trả",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "compaction",
+      "fallback": "Đất K95"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "determine_earth_source"
+    }
+  },
+  "Đắp": {
+    "object_name": "Đắp",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "compaction",
+      "fallback": "Đất K95"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "determine_earth_source"
+    }
+  },
+  "Vận chuyển": {
+    "object_name": "Vận chuyển",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Đất"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_transport_destination"
+    }
+  },
+  "Móng đường": {
+    "object_name": "Móng đường",
+    "extractor": "RoadExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "CPĐD"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_layer_compaction"
+    }
+  },
+  "Tưới nhựa": {
+    "object_name": "Tưới nhựa",
+    "extractor": "RoadExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "type",
+      "fallback": "Thấm bám"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_tuoi_nhua_dosage"
+    }
+  },
+  "Mặt đường": {
+    "object_name": "Mặt đường",
+    "extractor": "RoadExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "format_asphalt_grade"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_asphalt_thickness"
+    }
+  },
+  "Rải thảm": {
+    "object_name": "Rải thảm",
+    "extractor": "RoadExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "format_asphalt_grade"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_asphalt_thickness"
+    }
+  },
+  "Ván khuôn": {
+    "object_name": "Ván khuôn",
+    "extractor": "FormworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "position"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "type"
+    }
+  },
+  "Bê tông lót": {
+    "object_name": "Bê tông lót",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "grade",
+      "fallback": "M100"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "stone",
+      "fallback": "Đá 1x2"
+    }
+  },
+  "Bê tông mặt đường": {
+    "object_name": "Bê tông mặt đường",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "grade",
+      "fallback": "M250"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "stone",
+      "fallback": "Đá 1x2"
+    }
+  },
+  "Bê tông vỉa hè": {
+    "object_name": "Bê tông vỉa hè",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "grade",
+      "fallback": "M200"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "stone",
+      "fallback": "Đá 1x2"
+    }
+  },
+  "Bê tông": {
+    "object_name": "Bê tông",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "grade",
+      "fallback": "M250"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "stone",
+      "fallback": "Đá 1x2"
+    }
+  },
+  "Bó vỉa": {
+    "object_name": "Bó vỉa",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Đá tự nhiên"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_bo_via_specs"
+    }
+  },
+  "Tấm đan": {
+    "object_name": "Tấm đan",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Đá"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "convert_cm_to_mm_dimensions"
+    }
+  },
+  "Tấm đan rãnh": {
+    "object_name": "Tấm đan rãnh",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Đá"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "convert_cm_to_mm_dimensions"
+    }
+  },
+  "Tấm lát mái": {
+    "object_name": "Tấm lát mái",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Bê tông đúc sẵn"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "dimensions"
+    }
+  },
+  "Cống hộp": {
+    "object_name": "Cống hộp",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "BTCT"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_cong_hop_specs"
+    }
+  },
+  "Cống thoát nước": {
+    "object_name": "Cống thoát nước",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "BTCT"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_cong_thoat_nuoc_specs"
+    }
+  },
+  "Cống tròn": {
+    "object_name": "Cống tròn",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "BTCT"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "diameter"
+    }
+  },
+  "Hố ga": {
+    "object_name": "Hố ga",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "BTCT"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "dimensions"
+    }
+  },
+  "Rãnh thoát nước": {
+    "object_name": "Rãnh thoát nước",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "BTCT"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "dimensions"
+    }
+  },
+  "Cút": {
+    "object_name": "Cút",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Cút 45 độ": {
+    "object_name": "Cút 45 độ",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Cút 90 độ": {
+    "object_name": "Cút 90 độ",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Chếch": {
+    "object_name": "Chếch",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Chếch 45 độ": {
+    "object_name": "Chếch 45 độ",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Tê": {
+    "object_name": "Tê",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Tê đều": {
+    "object_name": "Tê đều",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Tê thu": {
+    "object_name": "Tê thu",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Tê hàn": {
+    "object_name": "Tê hàn",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Côn": {
+    "object_name": "Côn",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Côn thu": {
+    "object_name": "Côn thu",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Y thu": {
+    "object_name": "Y thu",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Măng sông": {
+    "object_name": "Măng sông",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Măng sông ren trong": {
+    "object_name": "Măng sông ren trong",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Măng sông nối ống": {
+    "object_name": "Măng sông nối ống",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Rắc co": {
+    "object_name": "Rắc co",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Rắc co ren ngoài": {
+    "object_name": "Rắc co ren ngoài",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Nút bịt": {
+    "object_name": "Nút bịt",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Đầu bịt": {
+    "object_name": "Đầu bịt",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Đầu bịt/Nút bịt": {
+    "object_name": "Đầu bịt/Nút bịt",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Đai khởi thủy": {
+    "object_name": "Đai khởi thủy",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Nút loe": {
+    "object_name": "Nút loe",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Đầu nối ren ngoài": {
+    "object_name": "Đầu nối ren ngoài",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Mặt bích (Bích hàn)": {
+    "object_name": "Mặt bích (Bích hàn)",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_fitting_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_fitting_specs"
+    }
+  },
+  "Khớp nối mềm": {
+    "object_name": "Khớp nối mềm",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "connection",
+      "fallback": "EE"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "diameter"
+    }
+  },
+  "Van khóa tay gạt": {
+    "object_name": "Van khóa tay gạt",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Đồng"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs"
+    }
+  },
+  "Van cổng": {
+    "object_name": "Van cổng",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs"
+    }
+  },
+  "Van 1 chiều": {
+    "object_name": "Van 1 chiều",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs"
+    }
+  },
+  "Van bướm": {
+    "object_name": "Van bướm",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs"
+    }
+  },
+  "Van góc": {
+    "object_name": "Van góc",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs"
+    }
+  },
+  "Van bi rắc co đôi": {
+    "object_name": "Van bi rắc co đôi",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs_with_handle"
+    }
+  },
+  "Van bi": {
+    "object_name": "Van bi",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_valve_connection"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_valve_specs_with_handle"
+    }
+  },
+  "Van báo động (Alarm Valve)": {
+    "object_name": "Van báo động (Alarm Valve)",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Gang"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "diameter"
+    }
+  },
+  "Bơm chữa cháy": {
+    "object_name": "Bơm chữa cháy",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pump_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pump_specs"
+    }
+  },
+  "Bơm bù áp": {
+    "object_name": "Bơm bù áp",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pump_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pump_specs"
+    }
+  },
+  "Bơm chìm nước thải": {
+    "object_name": "Bơm chìm nước thải",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pump_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pump_specs"
+    }
+  },
+  "Bơm nước": {
+    "object_name": "Bơm nước",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pump_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pump_specs"
+    }
+  },
+  "Bơm": {
+    "object_name": "Bơm",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pump_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pump_specs"
+    }
+  },
+  "Bình tích áp": {
+    "object_name": "Bình tích áp",
+    "extractor": "PumpExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "type",
+      "fallback": "Đứng"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pressure_tank_specs"
+    }
+  },
+  "Ống HDPE": {
+    "object_name": "Ống HDPE",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống uPVC": {
+    "object_name": "Ống uPVC",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống PVC": {
+    "object_name": "Ống PVC",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống PPR": {
+    "object_name": "Ống PPR",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống thép": {
+    "object_name": "Ống thép",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Ống thép"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống luồn dây": {
+    "object_name": "Ống luồn dây",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "fixed",
+      "key": "Ống luồn dây"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống nhựa": {
+    "object_name": "Ống nhựa",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Ống": {
+    "object_name": "Ống",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "computed",
+      "transform": "determine_pipe_object"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_pipe_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "combine_pipe_specs"
+    }
+  },
+  "Biển báo": {
+    "object_name": "Biển báo",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_sign_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_sign_specs"
+    }
+  },
+  "Cột đèn": {
+    "object_name": "Cột đèn",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "pole_type",
+      "fallback": "Bát giác côn"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_cot_den_specs"
+    }
+  },
+  "Đèn chiếu sáng": {
+    "object_name": "Đèn chiếu sáng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_den_chieu_sang_fixture"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_den_chieu_sang_specs"
+    }
+  },
+  "Cọc tiếp địa": {
+    "object_name": "Cọc tiếp địa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "profile",
+      "fallback": "Thép"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_coc_tiep_dia_length"
+    }
+  },
+  "Nắp hố ga": {
+    "object_name": "Nắp hố ga",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_nap_ho_ga_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_nap_ho_ga_specs"
+    }
+  },
+  "Song chắn rác": {
+    "object_name": "Song chắn rác",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_song_chan_rac_material"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_song_chan_rac_specs"
+    }
+  },
+  "Cáp điện": {
+    "object_name": "Cáp điện",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "cable_type",
+      "fallback": "Cu/XLPE/PVC"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "cable_size"
+    }
+  },
+  "Cáp trung thế": {
+    "object_name": "Cáp trung thế",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "cable_type",
+      "fallback": "Cu/XLPE/PVC"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "cable_size"
+    }
+  },
+  "Cáp hạ thế": {
+    "object_name": "Cáp hạ thế",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "cable_type",
+      "fallback": "Cu/XLPE/PVC"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "cable_size"
+    }
+  },
+  "Cốt thép": {
+    "object_name": "Cốt thép",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_rebar_size"
+    }
+  },
+  "Trụ cứu hỏa": {
+    "object_name": "Trụ cứu hỏa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Gang"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "diameter"
+    }
+  },
+  "Bình chữa cháy": {
+    "object_name": "Bình chữa cháy",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "ext_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_binh_chua_chay_model"
+    }
+  },
+  "Hộp đựng bình chữa cháy": {
+    "object_name": "Hộp đựng bình chữa cháy",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Thép sơn tĩnh điện"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Lò xo giảm chấn": {
+    "object_name": "Lò xo giảm chấn",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Thép/Cao su"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_lo_xo_purpose"
+    }
+  },
+  "Chậu rửa": {
+    "object_name": "Chậu rửa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Bồn dầu": {
+    "object_name": "Bồn dầu",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "capacity"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Họng tiếp dầu": {
+    "object_name": "Họng tiếp dầu",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Phụ kiện ACB": {
+    "object_name": "Phụ kiện ACB",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Phụ kiện MCCB": {
+    "object_name": "Phụ kiện MCCB",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Rơ le thời gian": {
+    "object_name": "Rơ le thời gian",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Bàn gọi PA": {
+    "object_name": "Bàn gọi PA",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_mep_type"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Hộp đấu nối": {
+    "object_name": "Hộp đấu nối",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_junction_box_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Cáp tín hiệu": {
+    "object_name": "Cáp tín hiệu",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_signal_cable_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_cable_size"
+    }
+  },
+  "Contactor": {
+    "object_name": "Contactor",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_contactor_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Biến dòng (CT)": {
+    "object_name": "Biến dòng (CT)",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_ct_ratio"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_ct_class"
+    }
+  },
+  "Biến tần (VSD)": {
+    "object_name": "Biến tần (VSD)",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_vsd_specs"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đồng hồ nước": {
+    "object_name": "Đồng hồ nước",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "diameter"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Hộp đồng hồ": {
+    "object_name": "Hộp đồng hồ",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Inox"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_hop_dong_ho_dims"
+    }
+  },
+  "Cụm van quản lý": {
+    "object_name": "Cụm van quản lý",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Trọn bộ"
+    }
+  },
+  "Cụm van xả khí": {
+    "object_name": "Cụm van xả khí",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Trọn bộ"
+    }
+  },
+  "Gối đỡ ống": {
+    "object_name": "Gối đỡ ống",
+    "extractor": "PipeFittingExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Bê tông/Composite"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Cọc tre": {
+    "object_name": "Cọc tre",
+    "extractor": "EarthworkExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "purpose",
+      "fallback": "Gia cố nền"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_coc_tre_spec"
+    }
+  },
+  "Vải địa kỹ thuật": {
+    "object_name": "Vải địa kỹ thuật",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Không dệt"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Nilon": {
+    "object_name": "Nilon",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_nilon_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_nilon_purpose"
+    }
+  },
+  "Đất màu": {
+    "object_name": "Đất màu",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Trồng cây"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Đá hộc": {
+    "object_name": "Đá hộc",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_da_hoc_type"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "dimensions"
+    }
+  },
+  "Đá dăm": {
+    "object_name": "Đá dăm",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_da_dam_purpose"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "dimensions"
+    }
+  },
+  "Thang thép": {
+    "object_name": "Thang thép",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Thép hình"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Trát": {
+    "object_name": "Trát",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_trat_mortar"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_trat_position"
+    }
+  },
+  "Láng": {
+    "object_name": "Láng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_trat_mortar"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_trat_position"
+    }
+  },
+  "Chèn vữa": {
+    "object_name": "Chèn vữa",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_trat_mortar"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_trat_position"
+    }
+  },
+  "Xây gạch": {
+    "object_name": "Xây gạch",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Gạch đặc M75"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_xay_gach_position"
+    }
+  },
+  "Xây đá": {
+    "object_name": "Xây đá",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "spec",
+      "key": "material",
+      "fallback": "Đá hộc"
+    },
+    "part3": {
+      "source": "spec",
+      "key": "mortar",
+      "fallback": "Vữa M100"
+    }
+  },
+  "Xây bể cáp": {
+    "object_name": "Xây bể cáp",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Gạch"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Xây tường": {
+    "object_name": "Xây tường",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Đá/Gạch"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_xay_tuong_type"
+    }
+  },
+  "Trồng cỏ": {
+    "object_name": "Trồng cỏ",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_trong_co_position"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_trong_co_care"
+    }
+  },
+  "Cửa xả": {
+    "object_name": "Cửa xả",
+    "extractor": "PrecastExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Bê tông cốt thép"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Theo thiết kế"
+    }
+  },
+  "Móng trụ": {
+    "object_name": "Móng trụ",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Bê tông cốt thép"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_mong_tru_purpose"
+    }
+  },
+  "Khung móng": {
+    "object_name": "Khung móng",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Thép"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_khung_mong_specs"
+    }
+  },
+  "Bệ tủ": {
+    "object_name": "Bệ tủ",
+    "extractor": "ConcreteExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Bê tông"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_be_tu_purpose"
+    }
+  },
+  "Chi phí": {
+    "object_name": "Chi phí",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_chi_phi_type"
+    },
+    "part3": {
+      "source": "computed",
+      "transform": "extract_chi_phi_scope"
+    }
+  },
+  "Vật tư phụ": {
+    "object_name": "Vật tư phụ",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "fixed",
+      "key": "Đấu nối tủ điện"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Trọn gói"
+    }
+  },
+  "Bản quan trắc": {
+    "object_name": "Bản quan trắc",
+    "extractor": "MEPEquipmentExtractor",
+    "part1": {
+      "source": "object_name"
+    },
+    "part2": {
+      "source": "computed",
+      "transform": "extract_quan_trac_type"
+    },
+    "part3": {
+      "source": "fixed",
+      "key": "Trọn bộ"
+    }
+  }
+}

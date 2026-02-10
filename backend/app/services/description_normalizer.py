@@ -120,7 +120,7 @@ class DescriptionNormalizer:
         'gia công': 'Gia công',
         'lắp dựng': 'Lắp dựng',
         'lắp đặt': 'Lắp đặt',
-        'cốt thép': 'cốt thép',
+        'cốt thép': 'Cốt thép',
         'ván khuôn': 'ván khuôn',
 
         # Masonry & Walls
@@ -161,7 +161,7 @@ class DescriptionNormalizer:
         'thi công', 'thi cong',
         'sản xuất', 'san xuat',
         'gia công', 'gia cong',
-        'vận chuyển', 'van chuyen',
+        # 'vận chuyển' - MOVED to VERBS_TO_KEEP (work-specific verb)
         'bơm', 'đổ',  # Khi đi kèm với từ khác
     ]
 
@@ -169,6 +169,8 @@ class DescriptionNormalizer:
     VERBS_TO_KEEP = [
         # Công việc đất
         'đào', 'dao', 'đắp', 'dap', 'san', 'lu', 'đầm', 'dam', 'rải', 'rai',
+        # Vận chuyển (work-specific verb, keep it)
+        'vận chuyển', 'van chuyen',
         # Hoàn thiện
         'xây', 'xay', 'trát', 'trat', 'lát', 'lat', 'ốp', 'op', 'sơn', 'son', 'quét', 'quet',
     ]
@@ -180,7 +182,7 @@ class DescriptionNormalizer:
         'bêtông': 'bê tông',
         'btxm': 'BTXM',  # Bê tông xi măng
         'btn': 'BTN',    # Bê tông nhựa (asphalt)
-        'cốt thép': 'cốt thép',
+        'cốt thép': 'Cốt thép',
         'thép': 'thép',
         'gạch': 'gạch',
         'đất': 'đất',
@@ -235,7 +237,15 @@ class DescriptionNormalizer:
         'nền đường', 'móng đường', 'đường',
         'mương', 'rãnh', 'cống', 'hố ga',
         'taluy', 'ta luy', 'bờ kè',
-        # MEP objects
+        # MEP objects - NEW
+        'ống', 'cáp', 'dây', 'tủ điện', 'tủ', 'máy',
+        'đèn', 'van', 'bơm', 'quạt', 'điều hòa',
+        'ống cấp nước', 'ống thoát nước', 'ống hdpe', 'ống pvc', 'ống ppr',
+        'cáp điện', 'dây điện', 'tủ điện tổng', 'tủ phân phối',
+        # Traffic objects - NEW
+        'biển báo', 'cột đèn', 'cống', 'hố ga', 'rãnh',
+        'vạch sơn', 'lan can', 'hộ lan', 'cọc tiêu',
+        # MEP positions
         'cấp nước', 'thoát nước', 'trục đứng', 'trục ngang',
         'âm tường', 'âm sàn', 'nổi', 'ngầm',
     ]
@@ -297,6 +307,28 @@ class DescriptionNormalizer:
     def __init__(self):
         """Initialize normalizer"""
         pass
+
+    def enforce_three_components(self, text: str) -> str:
+        """
+        Ensure output has exactly 3 components (max 2 dashes).
+        Standard Naming Strategy: [OBJECT] - [MATERIAL] - [SPECS]
+
+        Args:
+            text: Input text with components
+
+        Returns:
+            Text with exactly 3 components (or fewer if insufficient parts)
+        """
+        if not text or ' - ' not in text:
+            return text
+
+        parts = text.split(' - ')
+
+        if len(parts) <= 3:
+            return text
+
+        # Merge middle parts if more than 3
+        return f"{parts[0]} - {' '.join(parts[1:-1])} - {parts[-1]}"
 
     def convert_to_mm(self, value: str, unit: str) -> str:
         """
@@ -513,11 +545,15 @@ class DescriptionNormalizer:
             return f"CB{grade_num}{suffix}"
 
         # Pattern 5: D + số (D10, D12, D16, D18 - đường kính thép)
-        # Skip if it looks like pipe diameter (D63 with PPR/PVC context)
-        if not re.search(r'\b(ppr|pvc|hdpe|ống)\b', text_lower):
-            match = re.search(r'\bd(\d{1,2})\b', text_lower)
-            if match:
-                return f"D{match.group(1)}"
+        # This is now handled in parse_description as specs for rebar
+        # Skip D extraction here if CB grade is present (rebar context)
+        # We'll extract D as specs instead
+        if not re.search(r'\bcb\d{3}', text_lower):
+            # Skip if it looks like pipe diameter (D63 with PPR/PVC context)
+            if not re.search(r'\b(ppr|pvc|hdpe|ống)\b', text_lower):
+                match = re.search(r'\bd(\d{1,2})\b', text_lower)
+                if match:
+                    return f"D{match.group(1)}"
 
         # Pattern 6: Thickness (dày XXXmm, chiều dày XXX)
         match = re.search(r'dày\s*(\d+)\s*mm', text_lower)
@@ -789,6 +825,21 @@ class DescriptionNormalizer:
         pipe_diameter = re.search(r'\bd(\d{2,3})\b', text_lower)
         if pipe_diameter and components.get('material_type'):
             components['specs'].append(f"D{pipe_diameter.group(1)}")
+
+        # Extract rebar diameter (D10, D12, D16, D18, etc.) - add to specs for rebar
+        # Only if we have CB grade (rebar context) or cốt thép keyword
+        verb_value = components.get('verb') or ''
+        is_rebar_context = (
+            'cb' in text_lower or
+            'cốt thép' in text_lower or
+            verb_value.lower() == 'cốt thép'
+        )
+        if is_rebar_context:
+            rebar_diameter = re.search(r'\bd(\d{1,2})\b', text_lower)
+            if rebar_diameter:
+                d_spec = f"D{rebar_diameter.group(1)}"
+                if d_spec not in components['specs']:
+                    components['specs'].append(d_spec)
 
         # Extract additional details (thương phẩm, đá 1x2, cấp đất, vữa, etc.)
         detail_patterns = [
@@ -1179,19 +1230,32 @@ class DescriptionNormalizer:
             if headline:
                 parts.append(' '.join(headline))
 
-            # Specs (D<=10, etc.) and grade
+            # Specs (D<=10, D16, etc.) and grade
             primary_specs = []
-            rebar_specs = [s for s in specs if s.startswith('D') and any(c in s for c in '<>=')]
-            if rebar_specs:
-                primary_specs.extend(rebar_specs)
+            # Extract rebar comparison specs (D<=10, D>18)
+            rebar_comparison_specs = [s for s in specs if s.startswith('D') and any(c in s for c in '<>=')]
+            # Extract simple diameter specs (D16, D18)
+            rebar_diameter_specs = [s for s in specs if s.startswith('D') and s[1:].isdigit()]
 
-            # Default grades
+            if is_rebar:
+                # For rebar: combine diameter specs
+                if rebar_comparison_specs:
+                    primary_specs.extend(rebar_comparison_specs)
+                elif rebar_diameter_specs:
+                    primary_specs.extend(rebar_diameter_specs)
+
+            # Default grades - separate handling for concrete vs rebar
             effective_grade = grade
-            if not effective_grade and position and 'lót móng' in position and is_concrete:
-                effective_grade = 'M100'
-            # Default M250 for concrete without grade
-            if not effective_grade and is_concrete:
-                effective_grade = 'M250'
+            if not effective_grade:
+                if is_concrete:
+                    # Concrete default grades
+                    if position and 'lót móng' in position:
+                        effective_grade = 'M100'
+                    else:
+                        effective_grade = 'M250'
+                elif is_rebar:
+                    # Rebar default grade - CB300, NOT M-grades
+                    effective_grade = 'CB300'
 
             if effective_grade:
                 primary_specs.append(effective_grade)
@@ -1264,7 +1328,10 @@ class DescriptionNormalizer:
         result = re.sub(r'\s*-\s*', ' - ', result)
         result = re.sub(r'\s+', ' ', result)
 
-        return result.strip()
+        # Enforce 3-component structure (Standard Naming Strategy)
+        result = self.enforce_three_components(result.strip())
+
+        return result
 
     def _build_landscaping_syntax(self, components: Dict) -> str:
         """

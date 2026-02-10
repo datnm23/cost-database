@@ -45,9 +45,12 @@ class TestVerbStripping:
         """'Gia công' should be stripped"""
         assert self.normalizer.should_strip_verb('Gia công') is True
 
-    def test_should_strip_van_chuyen(self):
-        """'Vận chuyển' should be stripped"""
-        assert self.normalizer.should_strip_verb('Vận chuyển') is True
+    def test_should_keep_van_chuyen(self):
+        """'Vận chuyển' should be KEPT (work-specific verb, not auxiliary)"""
+        # Updated: Vận chuyển is now considered a work-specific verb
+        # because it describes a specific type of work activity
+        assert self.normalizer.should_strip_verb('Vận chuyển') is False
+        assert self.normalizer.should_strip_verb('vận chuyển') is False
 
     def test_should_keep_dao(self):
         """'Đào' should be kept (earthwork characteristic)"""

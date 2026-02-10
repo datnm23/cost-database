@@ -1,0 +1,781 @@
+"""
+Master Database Builder — 3-Step Pipeline
+
+Builds/rebuilds the master work items database from multiple BOQ files:
+
+Step 1 — AGGREGATION:
+    Scan line_items grouped by (description, unit), count frequency across files.
+
+Step 2 — STANDARDIZATION:
+    Normalize all descriptions, cluster similar items (fuzzy ≥0.85),
+    elect canonical name per cluster (highest frequency), apply 80/20 Pareto.
+
+Step 3 — CODING & TAGGING:
+    Classify SEC codes, extract specs, generate work codes,
+    validate via Gatekeeper, persist to master / pending / quarantine.
+"""
+import json
+import logging
+import unicodedata
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.line_item import LineItem
+from app.models.master_synonym import MasterSynonym
+from app.models.master_work_item import MasterWorkItem
+from app.models.pending_master_item import PendingMasterItem
+from app.models.quarantine_log import QuarantineLog
+from app.services.master_data_gatekeeper import get_gatekeeper
+from app.services.normalization_orchestrator import get_normalization_orchestrator
+from app.services.normalization_result import NormalizationResult, WorkCategory
+from app.services.spec_extractor import get_spec_extractor
+from app.services.work_code_generator import WorkCodeGenerator
+
+logger = logging.getLogger(__name__)
+
+# SEC code mapping from WorkCategory
+WORK_CATEGORY_TO_SEC = {
+    WorkCategory.EARTHWORKS_PILING: 'SEC-01',
+    WorkCategory.CONCRETE_REBAR: 'SEC-02',
+    WorkCategory.FINISHING: 'SEC-03',
+    WorkCategory.STEEL_MEP: 'SEC-04',
+    WorkCategory.ROAD_INFRASTRUCTURE: 'SEC-05',
+    WorkCategory.LANDSCAPING: 'SEC-05',
+    WorkCategory.GENERAL: 'SEC-00',
+}
+
+
+@dataclass
+class BuildConfig:
+    """Configuration for the master database build process."""
+    pareto_threshold: float = 0.80
+    clustering_threshold: float = 0.85
+    min_frequency: int = 1
+    auto_approve: bool = False
+    clear_existing: bool = False
+    batch_size: int = 500
+    include_only_pareto: bool = False
+
+
+@dataclass
+class AggregatedItem:
+    """Step 1 output — a unique (description, unit) pair with frequency."""
+    raw_descriptions: List[str]
+    unit: Optional[str]
+    frequency: int
+    source_file_ids: List[int]
+    representative_description: str
+
+
+@dataclass
+class StandardizedItem:
+    """Step 2 output — a canonical item with synonyms and normalization result."""
+    canonical_description: str
+    canonical_unit: Optional[str]
+    total_frequency: int
+    synonym_variants: List[str]
+    normalization_result: Optional[NormalizationResult] = None
+    is_pareto_top: bool = False
+    cluster_id: int = 0
+    source_file_ids: List[int] = field(default_factory=list)
+
+
+@dataclass
+class StepStats:
+    """Statistics for a single step."""
+    input_count: int = 0
+    output_count: int = 0
+    duration_ms: float = 0
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MasterBuildResult:
+    """Overall result from the 3-step build process."""
+    step1_stats: StepStats = field(default_factory=StepStats)
+    step2_stats: StepStats = field(default_factory=StepStats)
+    step3_stats: StepStats = field(default_factory=StepStats)
+    total_master_added: int = 0
+    total_pending: int = 0
+    total_quarantined: int = 0
+    total_updated: int = 0
+    total_synonyms_added: int = 0
+
+
+class MasterDatabaseBuilder:
+    """
+    Builds/rebuilds the master work items database from multiple BOQ files.
+
+    Composes existing services:
+    - NormalizationOrchestrator for description normalization
+    - SpecExtractor for structured specification extraction
+    - WorkCodeGenerator for work code generation
+    - MasterDataGatekeeper for quality validation
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.orchestrator = get_normalization_orchestrator()
+        self.spec_extractor = get_spec_extractor()
+        self.gatekeeper = get_gatekeeper()
+        self.code_generator = WorkCodeGenerator(db)
+        self._classifier = None
+
+    def _get_classifier(self):
+        """Lazy-load ClassifierService."""
+        if not hasattr(self, '_classifier'):
+            self._classifier = None
+        if self._classifier is None:
+            try:
+                from app.services.classifier_service import get_classifier
+                self._classifier = get_classifier(self.db)
+            except Exception as e:
+                logger.warning(f"Failed to initialize ClassifierService: {e}")
+        return self._classifier
+
+    def build(
+        self,
+        file_ids: List[int],
+        config: Optional[BuildConfig] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> MasterBuildResult:
+        """
+        Execute the full 3-step master database build pipeline.
+
+        Args:
+            file_ids: List of BOQ file IDs to process.
+            config: Build configuration. Uses defaults if None.
+            progress_callback: Optional callback(step_name, current, total).
+
+        Returns:
+            MasterBuildResult with per-step stats.
+        """
+        if config is None:
+            config = BuildConfig()
+
+        result = MasterBuildResult()
+
+        if config.clear_existing:
+            self._clear_existing_master()
+
+        # Step 1: Aggregation
+        if progress_callback:
+            progress_callback("aggregation", 0, 3)
+
+        aggregated = self.step1_aggregate(file_ids, config.min_frequency)
+        result.step1_stats = StepStats(
+            input_count=len(file_ids),
+            output_count=len(aggregated),
+            details={
+                'total_line_items_scanned': sum(a.frequency for a in aggregated),
+                'unique_descriptions': len(aggregated),
+            }
+        )
+
+        if not aggregated:
+            return result
+
+        # Step 2: Standardization
+        if progress_callback:
+            progress_callback("standardization", 1, 3)
+
+        standardized = self.step2_standardize(
+            aggregated, config.pareto_threshold, config.clustering_threshold
+        )
+        pareto_count = sum(1 for s in standardized if s.is_pareto_top)
+        result.step2_stats = StepStats(
+            input_count=len(aggregated),
+            output_count=len(standardized),
+            details={
+                'clusters_formed': len(set(s.cluster_id for s in standardized)),
+                'pareto_top_count': pareto_count,
+                'below_pareto_count': len(standardized) - pareto_count,
+                'total_synonyms': sum(len(s.synonym_variants) for s in standardized),
+            }
+        )
+
+        # Step 3: Coding & Tagging
+        if progress_callback:
+            progress_callback("coding_tagging", 2, 3)
+
+        items_to_process = standardized
+        if config.include_only_pareto:
+            items_to_process = [s for s in standardized if s.is_pareto_top]
+
+        step3_result = self.step3_code_and_tag(items_to_process, config)
+        result.step3_stats = step3_result.step3_stats
+        result.total_master_added = step3_result.total_master_added
+        result.total_pending = step3_result.total_pending
+        result.total_quarantined = step3_result.total_quarantined
+        result.total_updated = step3_result.total_updated
+        result.total_synonyms_added = step3_result.total_synonyms_added
+
+        if progress_callback:
+            progress_callback("done", 3, 3)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Step 1: Aggregation
+    # ------------------------------------------------------------------
+
+    def step1_aggregate(
+        self,
+        file_ids: List[int],
+        min_frequency: int = 1,
+    ) -> List[AggregatedItem]:
+        """
+        Scan line_items table grouped by (description, unit), count frequency.
+
+        Args:
+            file_ids: File IDs to scan.
+            min_frequency: Minimum frequency threshold.
+
+        Returns:
+            List of AggregatedItem sorted by frequency descending.
+        """
+        if not file_ids:
+            return []
+
+        rows = (
+            self.db.query(
+                LineItem.description,
+                LineItem.unit,
+                func.count(func.distinct(LineItem.file_id)).label('file_count'),
+                func.count(LineItem.line_item_id).label('total_count'),
+                func.group_concat(func.distinct(LineItem.file_id)).label('file_ids_str'),
+            )
+            .filter(
+                LineItem.file_id.in_(file_ids),
+                LineItem.description.isnot(None),
+                LineItem.description != '',
+            )
+            .group_by(LineItem.description, LineItem.unit)
+            .having(func.count(LineItem.line_item_id) >= min_frequency)
+            .order_by(func.count(LineItem.line_item_id).desc())
+            .all()
+        )
+
+        aggregated = []
+        for row in rows:
+            file_ids_list = self._parse_file_ids(row.file_ids_str)
+            aggregated.append(AggregatedItem(
+                raw_descriptions=[row.description],
+                unit=row.unit,
+                frequency=row.total_count,
+                source_file_ids=file_ids_list,
+                representative_description=row.description,
+            ))
+
+        return aggregated
+
+    # ------------------------------------------------------------------
+    # Step 2: Standardization
+    # ------------------------------------------------------------------
+
+    def step2_standardize(
+        self,
+        aggregated_items: List[AggregatedItem],
+        pareto_threshold: float = 0.80,
+        clustering_threshold: float = 0.85,
+    ) -> List[StandardizedItem]:
+        """
+        Normalize, cluster, elect canonical, and apply Pareto filter.
+
+        Args:
+            aggregated_items: Output from step 1.
+            pareto_threshold: Cumulative frequency threshold for Pareto (0-1).
+            clustering_threshold: Fuzzy similarity threshold for clustering.
+
+        Returns:
+            List of StandardizedItem with canonical names and synonyms.
+        """
+        if not aggregated_items:
+            return []
+
+        # Normalize all descriptions
+        descriptions = [item.representative_description for item in aggregated_items]
+        norm_results = self.orchestrator.normalize_batch(descriptions)
+
+        # Build items with normalized descriptions
+        items_with_norm = list(zip(aggregated_items, norm_results))
+
+        # Cluster similar normalized descriptions
+        clusters = self._cluster_descriptions(items_with_norm, clustering_threshold)
+
+        # Elect canonical per cluster and build StandardizedItems
+        standardized = []
+        for cluster_id, cluster_members in enumerate(clusters):
+            item = self._elect_canonical(cluster_members, cluster_id)
+            standardized.append(item)
+
+        # Sort by frequency for Pareto
+        standardized.sort(key=lambda s: s.total_frequency, reverse=True)
+
+        # Apply Pareto filter
+        self._apply_pareto(standardized, pareto_threshold)
+
+        return standardized
+
+    # ------------------------------------------------------------------
+    # Step 3: Coding & Tagging
+    # ------------------------------------------------------------------
+
+    def step3_code_and_tag(
+        self,
+        standardized_items: List[StandardizedItem],
+        config: Optional[BuildConfig] = None,
+    ) -> MasterBuildResult:
+        """
+        Classify, extract specs, generate codes, validate, and persist.
+
+        Args:
+            standardized_items: Output from step 2.
+            config: Build configuration.
+
+        Returns:
+            MasterBuildResult with step3 stats populated.
+        """
+        if config is None:
+            config = BuildConfig()
+
+        result = MasterBuildResult()
+        stats = {
+            'approved': 0,
+            'pending': 0,
+            'rejected': 0,
+            'updated': 0,
+            'synonyms_added': 0,
+            'by_sec_code': defaultdict(int),
+        }
+
+        for item in standardized_items:
+            try:
+                nested = self.db.begin_nested()
+                self._process_standardized_item(item, config, stats)
+                nested.commit()
+            except Exception as e:
+                logger.error(
+                    f"Error processing item '{item.canonical_description}': {e}"
+                )
+                try:
+                    nested.rollback()
+                except Exception:
+                    pass
+                continue
+
+        self.db.commit()
+
+        # Link master items back to source line_items
+        self._link_master_to_line_items(standardized_items)
+
+        result.step3_stats = StepStats(
+            input_count=len(standardized_items),
+            output_count=stats['approved'] + stats['pending'] + stats['rejected'],
+            details={
+                'approved': stats['approved'],
+                'pending': stats['pending'],
+                'rejected': stats['rejected'],
+                'updated': stats['updated'],
+                'by_sec_code': dict(stats['by_sec_code']),
+            }
+        )
+        result.total_master_added = stats['approved']
+        result.total_pending = stats['pending']
+        result.total_quarantined = stats['rejected']
+        result.total_updated = stats['updated']
+        result.total_synonyms_added = stats['synonyms_added']
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _process_standardized_item(
+        self,
+        item: StandardizedItem,
+        config: BuildConfig,
+        stats: Dict[str, Any],
+    ) -> None:
+        """Process a single standardized item through coding, validation, and persistence."""
+        norm_result = item.normalization_result
+        if norm_result is None:
+            norm_result = self.orchestrator.normalize(item.canonical_description)
+
+        # Derive SEC code: prefer ClassifierService, fallback to work category mapping
+        sec_code = None
+        classifier = self._get_classifier()
+        if classifier:
+            try:
+                desc_for_classify = norm_result.normalized or item.canonical_description
+                classify_results = classifier.classify(desc_for_classify, top_k=1)
+                if classify_results and classify_results[0][1] >= 70.0:
+                    sec_code = classify_results[0][0]
+            except Exception as e:
+                logger.warning(f"ClassifierService failed, falling back to mapping: {e}")
+
+        if not sec_code:
+            sec_code = WORK_CATEGORY_TO_SEC.get(
+                norm_result.work_category, 'SEC-00'
+            )
+
+        # Normalize for indexing
+        desc_normalized = self._normalize_for_index(item.canonical_description)
+        desc_display = norm_result.normalized or item.canonical_description
+
+        # Check if similar item already exists in master
+        existing = self._find_existing_master(desc_normalized, sec_code, item.canonical_unit)
+        if existing:
+            self._update_existing_master(existing, item)
+            stats['updated'] += 1
+            # Still add synonyms for the existing item
+            self._persist_synonyms(existing.master_id, item.synonym_variants)
+            stats['synonyms_added'] += len(item.synonym_variants)
+            return
+
+        # Extract specs
+        specs = self.spec_extractor.extract(desc_normalized)
+
+        # Validate with gatekeeper
+        gk_result = self.gatekeeper.validate({
+            'normalized_description': desc_normalized,
+            'description': desc_display,
+        })
+
+        stats['by_sec_code'][sec_code] += 1
+
+        if gk_result.status == 'APPROVED' or (config.auto_approve and gk_result.status == 'PENDING_REVIEW'):
+            # Generate work code
+            work_code = self.code_generator.generate_work_code(
+                description=desc_display,
+                sec_code=sec_code,
+                unit=item.canonical_unit,
+            )
+
+            master_item = MasterWorkItem(
+                work_code=work_code,
+                description=desc_display,
+                description_normalized=desc_normalized,
+                sec_code=sec_code,
+                unit_standard=item.canonical_unit or 'N/A',
+                occurrence_count=item.total_frequency,
+                source_files=json.dumps(item.source_file_ids),
+                is_verified=False,
+                spec_category=specs.category,
+                spec_material=specs.material,
+                spec_grade=specs.grade,
+                spec_dimension=specs.dimension,
+                matching_key=specs.to_matching_key(),
+            )
+            self.db.add(master_item)
+            self.db.flush()  # Get master_id for synonyms
+
+            # Persist synonyms
+            self._persist_synonyms(master_item.master_id, item.synonym_variants)
+            stats['synonyms_added'] += len(item.synonym_variants)
+            stats['approved'] += 1
+
+        elif gk_result.status == 'PENDING_REVIEW':
+            pending = PendingMasterItem(
+                description=desc_display,
+                description_normalized=desc_normalized,
+                sec_code=sec_code,
+                unit_standard=item.canonical_unit or 'N/A',
+                original_description=item.canonical_description,
+                quality_score=gk_result.score,
+                quality_reasons=json.dumps(gk_result.reasons),
+                quality_indicators=json.dumps(gk_result.indicators),
+                status='PENDING',
+            )
+            self.db.add(pending)
+            stats['pending'] += 1
+
+        else:
+            # Rejected
+            primary_reason = gk_result.reasons[0] if gk_result.reasons else 'Unknown'
+            quarantine = QuarantineLog(
+                description=item.canonical_description,
+                description_normalized=desc_normalized,
+                rejection_reason=primary_reason[:500],
+                quality_score=gk_result.score,
+                quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None,
+            )
+            self.db.add(quarantine)
+            stats['rejected'] += 1
+
+    def _link_master_to_line_items(
+        self,
+        standardized_items: List[StandardizedItem],
+    ) -> None:
+        """
+        Back-link master items to their source line_items.
+
+        After step3 creates master items, iterate through standardized_items,
+        find the corresponding master item, and update all source line_items
+        with matched_master_id, match_type='exact', match_similarity=1.0.
+
+        Only updates line_items that don't already have a matched_master_id.
+        """
+        for item in standardized_items:
+            # Find the master item by normalized description
+            desc_normalized = self._normalize_for_index(item.canonical_description)
+            master = self.db.query(MasterWorkItem).filter(
+                MasterWorkItem.description_normalized == desc_normalized,
+                MasterWorkItem.is_active == True,
+            ).first()
+
+            if not master:
+                continue
+
+            # All descriptions in the cluster (canonical + synonyms)
+            all_descriptions = [item.canonical_description] + item.synonym_variants
+            all_normalized = [self._normalize_for_index(d) for d in all_descriptions]
+
+            # Update source line items that don't already have a match
+            for file_id in item.source_file_ids:
+                for norm_desc in all_normalized:
+                    line_items = self.db.query(LineItem).filter(
+                        LineItem.file_id == file_id,
+                        LineItem.normalized_description == norm_desc,
+                        LineItem.matched_master_id.is_(None),
+                    ).all()
+
+                    for li in line_items:
+                        li.matched_master_id = master.master_id
+                        li.match_type = 'exact'
+                        li.match_similarity = 100.0
+                        li.needs_review = False
+
+        self.db.flush()
+
+    def _cluster_descriptions(
+        self,
+        items_with_norm: List[Tuple[AggregatedItem, NormalizationResult]],
+        threshold: float,
+    ) -> List[List[Tuple[AggregatedItem, NormalizationResult]]]:
+        """
+        Group similar normalized descriptions using Union-Find with pairwise
+        fuzzy matching (RapidFuzz).
+
+        For datasets >5000, falls back to a simpler exact-normalized grouping
+        to avoid O(n^2) explosion.
+        """
+        n = len(items_with_norm)
+        if n == 0:
+            return []
+
+        # Get normalized descriptions for comparison
+        norm_descs = [
+            self._normalize_for_index(nr.normalized)
+            for _, nr in items_with_norm
+        ]
+
+        # Union-Find parent array
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a: int, b: int) -> None:
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        if n <= 5000:
+            # Pairwise fuzzy comparison with RapidFuzz
+            try:
+                from rapidfuzz import fuzz
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        # Items must have same unit to be clustered
+                        if items_with_norm[i][0].unit != items_with_norm[j][0].unit:
+                            continue
+                        score = fuzz.ratio(norm_descs[i], norm_descs[j]) / 100.0
+                        if score >= threshold:
+                            union(i, j)
+            except ImportError:
+                # Fallback: use difflib SequenceMatcher
+                from difflib import SequenceMatcher
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        if items_with_norm[i][0].unit != items_with_norm[j][0].unit:
+                            continue
+                        score = SequenceMatcher(None, norm_descs[i], norm_descs[j]).ratio()
+                        if score >= threshold:
+                            union(i, j)
+        else:
+            # Large dataset: group by exact normalized description + unit
+            seen: Dict[Tuple[str, Optional[str]], int] = {}
+            for i in range(n):
+                key = (norm_descs[i], items_with_norm[i][0].unit)
+                if key in seen:
+                    union(i, seen[key])
+                else:
+                    seen[key] = i
+
+        # Build clusters from Union-Find
+        clusters_map: Dict[int, List[int]] = defaultdict(list)
+        for i in range(n):
+            clusters_map[find(i)].append(i)
+
+        return [
+            [items_with_norm[i] for i in indices]
+            for indices in clusters_map.values()
+        ]
+
+    def _elect_canonical(
+        self,
+        cluster: List[Tuple[AggregatedItem, NormalizationResult]],
+        cluster_id: int,
+    ) -> StandardizedItem:
+        """
+        Pick the highest-frequency description as canonical.
+        Tiebreaker: longest description (most specific).
+        """
+        # Sort: highest frequency first, then longest description
+        cluster.sort(
+            key=lambda x: (x[0].frequency, len(x[0].representative_description)),
+            reverse=True,
+        )
+
+        canonical_agg, canonical_norm = cluster[0]
+
+        # Collect all file IDs across cluster
+        all_file_ids: Set[int] = set()
+        all_descriptions: Set[str] = set()
+        total_freq = 0
+
+        for agg, _ in cluster:
+            all_file_ids.update(agg.source_file_ids)
+            all_descriptions.update(agg.raw_descriptions)
+            total_freq += agg.frequency
+
+        # Synonyms are all non-canonical descriptions
+        canonical_desc = canonical_agg.representative_description
+        synonym_variants = [
+            d for d in all_descriptions if d != canonical_desc
+        ]
+
+        return StandardizedItem(
+            canonical_description=canonical_desc,
+            canonical_unit=canonical_agg.unit,
+            total_frequency=total_freq,
+            synonym_variants=synonym_variants,
+            normalization_result=canonical_norm,
+            cluster_id=cluster_id,
+            source_file_ids=sorted(all_file_ids),
+        )
+
+    def _apply_pareto(
+        self,
+        items: List[StandardizedItem],
+        threshold: float,
+    ) -> None:
+        """
+        Mark top items covering threshold% of cumulative frequency.
+        Items must be pre-sorted by frequency descending.
+        """
+        grand_total = sum(s.total_frequency for s in items)
+        if grand_total == 0:
+            return
+
+        cumulative = 0
+        target = grand_total * threshold
+
+        for item in items:
+            cumulative += item.total_frequency
+            item.is_pareto_top = True
+            if cumulative >= target:
+                break
+
+    def _find_existing_master(
+        self,
+        desc_normalized: str,
+        sec_code: str,
+        unit: Optional[str],
+    ) -> Optional[MasterWorkItem]:
+        """Check if similar item already exists in master database."""
+        query = self.db.query(MasterWorkItem).filter(
+            MasterWorkItem.description_normalized == desc_normalized,
+            MasterWorkItem.is_active == True,
+        )
+        if sec_code:
+            query = query.filter(MasterWorkItem.sec_code == sec_code)
+        if unit:
+            query = query.filter(MasterWorkItem.unit_standard == unit)
+
+        return query.first()
+
+    def _update_existing_master(
+        self,
+        master: MasterWorkItem,
+        item: StandardizedItem,
+    ) -> None:
+        """Update existing master item with new frequency and source info."""
+        master.occurrence_count = (master.occurrence_count or 0) + item.total_frequency
+
+        existing_sources = json.loads(master.source_files) if master.source_files else []
+        merged = sorted(set(existing_sources + item.source_file_ids))
+        master.source_files = json.dumps(merged)
+
+    def _persist_synonyms(
+        self,
+        master_id: int,
+        variants: List[str],
+    ) -> None:
+        """Persist synonym variants for a master item."""
+        for variant in variants:
+            normalized = self._normalize_for_index(variant)
+            # Check if synonym already exists
+            exists = self.db.query(MasterSynonym).filter(
+                MasterSynonym.master_id == master_id,
+                MasterSynonym.synonym_normalized == normalized,
+            ).first()
+            if not exists:
+                synonym = MasterSynonym(
+                    master_id=master_id,
+                    synonym_text=variant,
+                    synonym_normalized=normalized,
+                    synonym_type='alias',
+                    is_active=True,
+                )
+                self.db.add(synonym)
+
+    def _normalize_for_index(self, text: str) -> str:
+        """Normalize text for indexing (lowercase, NFC, single spaces)."""
+        if not text:
+            return ''
+        text = unicodedata.normalize('NFC', text)
+        text = text.lower()
+        text = ' '.join(text.split())
+        return text.strip()
+
+    def _clear_existing_master(self) -> None:
+        """Clear all existing master data for full rebuild."""
+        self.db.query(MasterSynonym).delete()
+        self.db.query(PendingMasterItem).delete()
+        self.db.query(QuarantineLog).delete()
+        self.db.query(MasterWorkItem).delete()
+        self.db.flush()
+
+    def _parse_file_ids(self, file_ids_str: Optional[str]) -> List[int]:
+        """Parse comma-separated file ID string into list of ints."""
+        if not file_ids_str:
+            return []
+        try:
+            return sorted(int(x) for x in str(file_ids_str).split(',') if x.strip())
+        except (ValueError, TypeError):
+            return []
+
+
+def get_master_database_builder(db: Session) -> MasterDatabaseBuilder:
+    """Factory function for MasterDatabaseBuilder."""
+    return MasterDatabaseBuilder(db)

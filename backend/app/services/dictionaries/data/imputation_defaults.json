@@ -1,0 +1,233 @@
+{
+  "Đào": {
+    "method": "Máy đào 0.8m3",
+    "soil_class": "Đất cấp 3"
+  },
+  "Đào đất": {
+    "method": "Máy đào 0.8m3",
+    "soil_class": "Đất cấp 3"
+  },
+  "Đào phá dỡ": {
+    "position": "Nền đường"
+  },
+  "Đào khuôn đường": {
+    "soil_class": "Đất cấp 3",
+    "method": "Máy/Thủ công"
+  },
+  "Đắp": {
+    "method": "Lu rung 6T",
+    "compaction": "Đất K95"
+  },
+  "Đắp đất": {
+    "method": "Lu rung 6T",
+    "compaction": "Đất K95"
+  },
+  "Đắp đất nền": {
+    "compaction": "Đất K95"
+  },
+  "Đắp đất hoàn trả": {
+    "compaction": "Đất K95"
+  },
+  "San nền": {
+    "method": "Máy ủi D6",
+    "compaction": "K95"
+  },
+  "Lu lèn": {
+    "method": "Lu rung 10T"
+  },
+  "Đầm nén": {
+    "method": "Đầm cóc",
+    "compaction": "K95"
+  },
+  "Vận chuyển": {
+    "distance": "≤5km",
+    "destination": "Đổ đúng nơi quy định"
+  },
+  "Bê tông": {
+    "lót": "M100",
+    "lót móng": "M100",
+    "móng": "M250",
+    "đế móng": "M250",
+    "đài móng": "M300",
+    "cột": "M300",
+    "dầm": "M350",
+    "sàn": "M350",
+    "dầm sàn": "M350",
+    "vách": "M300",
+    "cầu thang": "M300",
+    "default": "M250",
+    "stone": "Đá 1x2"
+  },
+  "Bê tông lót": {
+    "grade": "M100",
+    "stone": "Đá 4x6"
+  },
+  "Bê tông mặt đường": {
+    "grade": "M250",
+    "stone": "Đá 1x2"
+  },
+  "Bê tông vỉa hè": {
+    "grade": "M200",
+    "stone": "Đá 1x2"
+  },
+  "Bê tông thương phẩm": {
+    "type": "Thương phẩm",
+    "stone": "Đá 1x2"
+  },
+  "Cốt thép": {
+    "grade": "Theo thiết kế"
+  },
+  "Ván khuôn": {
+    "type_if_needed": "Theo thiết kế"
+  },
+  "Trát": {
+    "mortar": "Vữa xi măng"
+  },
+  "Láng": {
+    "mortar": "Vữa xi măng"
+  },
+  "Chèn vữa": {
+    "mortar": "Xi măng"
+  },
+  "Xây": {
+    "mortar": "M75"
+  },
+  "Xây gạch": {
+    "material": "Gạch đặc M75"
+  },
+  "Xây đá": {
+    "material": "Đá hộc",
+    "mortar": "Vữa M100"
+  },
+  "Xây bể cáp": {
+    "material": "Gạch"
+  },
+  "Xây tường": {
+    "material": "Đá/Gạch"
+  },
+  "Lát": {
+    "mortar": "M50"
+  },
+  "Ốp": {
+    "mortar": "M50"
+  },
+  "Sơn": {
+    "coat": "1 lót 2 phủ"
+  },
+  "CPĐD": {
+    "compaction": "K98"
+  },
+  "Móng đường": {
+    "material": "CPĐD"
+  },
+  "BTN": {
+    "type": "Nóng"
+  },
+  "Mặt đường": {
+    "material": "Bê tông nhựa"
+  },
+  "Tưới nhựa": {
+    "type": "Thấm bám"
+  },
+  "Bó vỉa": {
+    "material": "Đá tự nhiên"
+  },
+  "Tấm đan": {
+    "material": "Đá"
+  },
+  "Tấm đan rãnh": {
+    "material": "Đá"
+  },
+  "Tấm lát mái": {
+    "material": "Bê tông đúc sẵn"
+  },
+  "Cọc tre": {
+    "purpose": "Gia cố nền",
+    "spec": "Theo thiết kế"
+  },
+  "Ống": {
+    "material": "HDPE"
+  },
+  "Ống HDPE": {
+    "pressure": "PN10"
+  },
+  "Ống PVC": {
+    "pressure": "PN6"
+  },
+  "Ống PPR": {
+    "pressure": "PN10"
+  },
+  "Ống uPVC": {
+    "pressure": "PN8"
+  },
+  "Ống thép": {
+    "type": "Đen"
+  },
+  "Ống luồn dây": {
+    "type": "HDPE Gân xoắn"
+  },
+  "Ống nhựa": {
+    "material": "HDPE"
+  },
+  "Trụ cứu hỏa": {
+    "material": "Gang"
+  },
+  "Hộp đựng bình chữa cháy": {
+    "material": "Thép sơn tĩnh điện"
+  },
+  "Cửa xả": {
+    "material": "Bê tông cốt thép"
+  },
+  "Nắp hố ga": {
+    "material": "Gang"
+  },
+  "Van báo động (Alarm Valve)": {
+    "material": "Gang"
+  },
+  "Gối đỡ ống": {
+    "material": "Bê tông/Composite"
+  },
+  "Đồng hồ nước": {
+    "type": "Theo thiết kế"
+  },
+  "Cụm van quản lý": {
+    "spec": "Trọn bộ"
+  },
+  "Cụm van xả khí": {
+    "spec": "Trọn bộ"
+  },
+  "Lò xo giảm chấn": {
+    "material": "Thép/Cao su"
+  },
+  "Vải địa kỹ thuật": {
+    "type": "Không dệt"
+  },
+  "Nilon": {
+    "type": "Tái sinh",
+    "position": "Lót móng"
+  },
+  "Đất màu": {
+    "purpose": "Trồng cây"
+  },
+  "Đá hộc": {
+    "type": "Xếp khan"
+  },
+  "Đá dăm": {
+    "purpose": "Đệm móng"
+  },
+  "Thang thép": {
+    "material": "Thép hình"
+  },
+  "Chi phí": {
+    "type": "Kiểm định/Thí nghiệm",
+    "scope": "Trọn gói"
+  },
+  "Vật tư phụ": {
+    "purpose": "Đấu nối tủ điện",
+    "scope": "Trọn gói"
+  },
+  "Bản quan trắc": {
+    "type": "Quan trắc lún",
+    "scope": "Trọn bộ"
+  }
+}

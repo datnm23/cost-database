@@ -164,6 +164,7 @@ class WorkCodeGenerator:
 
     def __init__(self, db: Session):
         self.db = db
+        self._sequence_cache: dict[str, int] = {}
 
     def normalize_text(self, text: str) -> str:
         """Chuẩn hóa text: lowercase, remove accents, extra spaces"""
@@ -305,9 +306,16 @@ class WorkCodeGenerator:
 
     def get_next_sequence(self, sec_code: str, category: str) -> int:
         """
-        Lấy sequence number tiếp theo cho một nhóm
+        Lấy sequence number tiếp theo cho một nhóm.
+        Uses in-memory cache to avoid duplicate codes within the same batch.
         """
         sec_prefix = self.SEC_PREFIX_MAP.get(sec_code, 'S99')
+        cache_key = f"{sec_prefix}-{category}"
+
+        if cache_key in self._sequence_cache:
+            self._sequence_cache[cache_key] += 1
+            return self._sequence_cache[cache_key]
+
         pattern = f"{sec_prefix}-{category}-%"
 
         # Find max sequence in this group
@@ -318,13 +326,17 @@ class WorkCodeGenerator:
         ).scalar()
 
         if not result:
+            self._sequence_cache[cache_key] = 1
             return 1
 
         # Extract sequence number from code like "S01-EARTH-EXCAV-0025"
         match = re.search(r'-(\d+)$', result)
         if match:
-            return int(match.group(1)) + 1
+            next_seq = int(match.group(1)) + 1
+            self._sequence_cache[cache_key] = next_seq
+            return next_seq
 
+        self._sequence_cache[cache_key] = 1
         return 1
 
     def generate_work_code(
