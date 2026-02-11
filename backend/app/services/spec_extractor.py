@@ -67,9 +67,24 @@ class SpecExtractor:
         ('be tong', r'b[eê]\s*t[oô]ng|beton|concrete|bt(?!\w)'),
         ('thep hinh', r'th[eé]p\s*h[iì]nh|th[eé]p\s*h|thep\s*i|thep\s*u'),
         ('thep', r'(?<![a-z])th[eé]p(?!\s*c[oố]t)'),
+        # Pipe fittings (more specific before generic pipe)
+        ('co ong', r'c[uú]t\b|co\s+[oố]ng|elbow'),
+        ('te ong', r'(?<![a-z])t[eê]\b(?!\s*bào).*[oố]ng|t[eê]\s+(?:thép|nhựa|pvc|hdpe|ppr)'),
+        ('con thu', r'c[oô]n\s+thu|reducer'),
+        ('bich', r'b[ií]ch\b(?!\s*khuôn)|flange'),
+        ('khop noi', r'kh[oớ]p\s*n[oố]i|coupling|joint'),
+        ('van', r'(?<![a-z])van\s+(?:c[oổ]ng|b[uướ]m|bi|m[oộ]t|c[aầ]u|x[aả])|valve'),
         ('ong', r'(?<![a-z])[oố]ng(?!\s*gen)|pipe|tube'),
+        # Electrical equipment
+        ('tu dien', r't[uủ]\s*[dđ]i[eệ]n|panel\s*board|switchboard'),
+        ('aptomat', r'aptomat|mccb|mcb|breaker|circuit\s*breaker'),
+        ('contactor', r'contactor|kh[oở]i\s*[dđ][oộ]ng\s*t[uừ]'),
         ('cap dien', r'c[aá]p\s*[dđ]i[eệ]n|d[aâ]y\s*[dđ]i[eệ]n|cap\s*dien'),
         ('cap', r'(?<![a-z])c[aá]p(?!\s*treo)|cable'),
+        # Flow meters & pumps
+        ('dong ho', r'[dđ][oồ]ng\s*h[oồ]|flow\s*meter|meter'),
+        ('bom', r'(?<![a-z])b[oơ]m\b|pump'),
+        # Others
         ('gach lat', r'g[aạ]ch\s*l[aá]t|gach\s*lat|tile'),
         ('dao dat', r'[dđ][aà]o\s*[dđ][aấ]t|dao\s*dat|excavat'),
         ('dap dat', r'[dđ][aắ]p\s*[dđ][aấ]t|dap\s*dat|backfill'),

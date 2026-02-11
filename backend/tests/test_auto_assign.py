@@ -917,3 +917,145 @@ class TestBackLink:
 
         # Should not raise
         builder._link_master_to_line_items(items)
+
+
+# ============================================================
+# TestSECRuleOverride (Change B integration)
+# ============================================================
+
+class TestSECRuleOverride:
+    """Test that _classify_sec_by_rules() overrides SEC-00/SEC-04 in step3."""
+
+    def test_rule_overrides_sec00_for_plumbing(self):
+        """Item classified as SEC-00 by ML, should be overridden to SEC-04-02 by rules."""
+        builder = _make_builder()
+        builder.gatekeeper.validate.return_value = _FakeGatekeeperResult(
+            status='APPROVED', score=85.0
+        )
+        builder.spec_extractor.extract.return_value = _FakeSpecs()
+        builder.code_generator.generate_work_code.return_value = 'S04-PIPE-0001'
+        builder.orchestrator.normalize.return_value = _make_norm_result(
+            'Ống PVC D60', 'ống pvc d60', WorkCategory.GENERAL
+        )
+
+        # ML classifier returns SEC-00 (Unclassified)
+        mock_classifier = MagicMock()
+        mock_classifier.classify.return_value = [('SEC-00', 75.0)]
+        builder._classifier = mock_classifier
+
+        item = StandardizedItem(
+            canonical_description='Ống PVC D60',
+            canonical_unit='m',
+            total_frequency=10,
+            synonym_variants=[],
+            normalization_result=_make_norm_result(
+                'Ống PVC D60', 'ống pvc d60', WorkCategory.GENERAL
+            ),
+            source_file_ids=[1],
+        )
+
+        builder.step3_code_and_tag([item])
+
+        call_kwargs = builder.code_generator.generate_work_code.call_args
+        sec_used = call_kwargs.kwargs.get('sec_code') or call_kwargs[1].get('sec_code')
+        assert sec_used == 'SEC-04-02'
+
+    def test_rule_overrides_sec04_to_sub_for_electrical(self):
+        """Item classified as SEC-04 (generic MEP), should be refined to SEC-04-01."""
+        builder = _make_builder()
+        builder.gatekeeper.validate.return_value = _FakeGatekeeperResult(
+            status='APPROVED', score=85.0
+        )
+        builder.spec_extractor.extract.return_value = _FakeSpecs()
+        builder.code_generator.generate_work_code.return_value = 'S04-ELEC-0001'
+        builder.orchestrator.normalize.return_value = _make_norm_result(
+            'MCCB 3P 100A', 'mccb 3p 100a', WorkCategory.STEEL_MEP
+        )
+
+        # ML classifier returns SEC-04 (generic MEP)
+        mock_classifier = MagicMock()
+        mock_classifier.classify.return_value = [('SEC-04', 80.0)]
+        builder._classifier = mock_classifier
+
+        item = StandardizedItem(
+            canonical_description='MCCB 3P 100A',
+            canonical_unit='cái',
+            total_frequency=5,
+            synonym_variants=[],
+            normalization_result=_make_norm_result(
+                'MCCB 3P 100A', 'mccb 3p 100a', WorkCategory.STEEL_MEP
+            ),
+            source_file_ids=[1],
+        )
+
+        builder.step3_code_and_tag([item])
+
+        call_kwargs = builder.code_generator.generate_work_code.call_args
+        sec_used = call_kwargs.kwargs.get('sec_code') or call_kwargs[1].get('sec_code')
+        assert sec_used == 'SEC-04-01'
+
+    def test_no_rule_override_for_specific_sec(self):
+        """If ML returns specific SEC-02 with high confidence, rules should not override."""
+        builder = _make_builder()
+        builder.gatekeeper.validate.return_value = _FakeGatekeeperResult(
+            status='APPROVED', score=85.0
+        )
+        builder.spec_extractor.extract.return_value = _FakeSpecs()
+        builder.code_generator.generate_work_code.return_value = 'S02-CONC-0001'
+        builder.orchestrator.normalize.return_value = _make_norm_result(
+            'Bê tông M200', 'bê tông m200', WorkCategory.CONCRETE_REBAR
+        )
+
+        # ML classifier returns SEC-02 with high confidence
+        mock_classifier = MagicMock()
+        mock_classifier.classify.return_value = [('SEC-02', 92.0)]
+        builder._classifier = mock_classifier
+
+        item = StandardizedItem(
+            canonical_description='Bê tông M200',
+            canonical_unit='m3',
+            total_frequency=10,
+            synonym_variants=[],
+            normalization_result=_make_norm_result(
+                'Bê tông M200', 'bê tông m200', WorkCategory.CONCRETE_REBAR
+            ),
+            source_file_ids=[1],
+        )
+
+        builder.step3_code_and_tag([item])
+
+        call_kwargs = builder.code_generator.generate_work_code.call_args
+        sec_used = call_kwargs.kwargs.get('sec_code') or call_kwargs[1].get('sec_code')
+        assert sec_used == 'SEC-02'
+
+    def test_rule_catches_unclassified_van(self):
+        """Van cổng should be caught as SEC-04-02 even without ML classifier."""
+        builder = _make_builder()
+        builder.gatekeeper.validate.return_value = _FakeGatekeeperResult(
+            status='APPROVED', score=85.0
+        )
+        builder.spec_extractor.extract.return_value = _FakeSpecs()
+        builder.code_generator.generate_work_code.return_value = 'S04-VALVE-0001'
+        builder.orchestrator.normalize.return_value = _make_norm_result(
+            'Van cổng DN80', 'van cổng dn80', WorkCategory.GENERAL
+        )
+
+        # No ML classifier available
+        builder._classifier = None
+
+        item = StandardizedItem(
+            canonical_description='Van cổng DN80',
+            canonical_unit='cái',
+            total_frequency=8,
+            synonym_variants=[],
+            normalization_result=_make_norm_result(
+                'Van cổng DN80', 'van cổng dn80', WorkCategory.GENERAL
+            ),
+            source_file_ids=[1],
+        )
+
+        builder.step3_code_and_tag([item])
+
+        call_kwargs = builder.code_generator.generate_work_code.call_args
+        sec_used = call_kwargs.kwargs.get('sec_code') or call_kwargs[1].get('sec_code')
+        assert sec_used == 'SEC-04-02'

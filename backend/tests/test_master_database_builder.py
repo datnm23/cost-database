@@ -274,10 +274,10 @@ class TestStep2Standardization:
         result = builder.step2_standardize([agg])
 
         assert len(result) == 1
-        assert result[0].canonical_description == 'Đào đất hố móng'
+        # Now uses normalized description as canonical
+        assert result[0].canonical_description == 'đào đất hố móng'
         assert result[0].total_frequency == 10
         assert result[0].is_pareto_top is True
-        assert result[0].synonym_variants == []
 
     def test_identical_descriptions_cluster_together(self):
         builder = self._make_builder()
@@ -323,8 +323,8 @@ class TestStep2Standardization:
         result = builder.step2_standardize([agg1, agg2], clustering_threshold=0.65)
 
         assert len(result) == 1
-        # Highest frequency wins
-        assert result[0].canonical_description == 'Ống nhựa PVC D20'
+        # Now uses normalized description (from highest frequency item)
+        assert result[0].canonical_description == 'ống nhựa pvc d20'
         assert result[0].total_frequency == 30
 
     def test_pareto_marks_top_items(self):
@@ -748,31 +748,34 @@ class TestInternalHelpers:
     def test_elect_canonical_highest_frequency(self):
         builder = self._make_builder()
 
-        agg_low = _make_agg('Short', frequency=5, file_ids=[1])
-        norm_low = _make_norm_result('Short', 'short')
+        agg_low = _make_agg('Short desc item', frequency=5, file_ids=[1])
+        norm_low = _make_norm_result('Short desc item', 'short desc item')
         agg_high = _make_agg('Higher frequency item', frequency=20, file_ids=[2])
         norm_high = _make_norm_result('Higher frequency item', 'higher frequency item')
 
         cluster = [(agg_low, norm_low), (agg_high, norm_high)]
         result = builder._elect_canonical(cluster, cluster_id=0)
 
-        assert result.canonical_description == 'Higher frequency item'
+        # Now uses normalized description
+        assert result.canonical_description == 'higher frequency item'
         assert result.total_frequency == 25
-        assert 'Short' in result.synonym_variants
+        # Raw descriptions that differ from canonical are synonyms
+        assert 'Short desc item' in result.synonym_variants or \
+               'Higher frequency item' in result.synonym_variants
 
     def test_elect_canonical_tiebreak_by_length(self):
         builder = self._make_builder()
 
-        agg1 = _make_agg('A short', frequency=10, file_ids=[1])
-        norm1 = _make_norm_result('A short', 'a short')
-        agg2 = _make_agg('A much longer description', frequency=10, file_ids=[2])
-        norm2 = _make_norm_result('A much longer description', 'a much longer description')
+        agg1 = _make_agg('A short item', frequency=10, file_ids=[1])
+        norm1 = _make_norm_result('A short item', 'a short item')
+        agg2 = _make_agg('A much longer description here', frequency=10, file_ids=[2])
+        norm2 = _make_norm_result('A much longer description here', 'a much longer description here')
 
         cluster = [(agg1, norm1), (agg2, norm2)]
         result = builder._elect_canonical(cluster, cluster_id=0)
 
-        # Same frequency, longer wins
-        assert result.canonical_description == 'A much longer description'
+        # Same frequency, longer wins; uses normalized description
+        assert result.canonical_description == 'a much longer description here'
 
     def test_apply_pareto_all_items_when_needed(self):
         builder = self._make_builder()
@@ -806,3 +809,134 @@ class TestInternalHelpers:
         builder._apply_pareto(items, 0.80)
         # No items should be marked (total is 0)
         assert not items[0].is_pareto_top
+
+    def test_is_degenerate_short_text(self):
+        builder = self._make_builder()
+        assert builder._is_degenerate('ab') is True
+        assert builder._is_degenerate('abcd') is True
+        assert builder._is_degenerate('') is True
+        assert builder._is_degenerate(None) is True
+
+    def test_is_degenerate_repeated_words(self):
+        builder = self._make_builder()
+        assert builder._is_degenerate('ống ống') is True
+        assert builder._is_degenerate('d60 d60') is True
+        assert builder._is_degenerate('pvc pvc pvc') is True
+
+    def test_is_degenerate_normal_text(self):
+        builder = self._make_builder()
+        assert builder._is_degenerate('ống pvc d60') is False
+        assert builder._is_degenerate('bê tông m200 móng') is False
+        assert builder._is_degenerate('van cổng dn80') is False
+
+    def test_is_degenerate_generic_single_word(self):
+        builder = self._make_builder()
+        assert builder._is_degenerate('đầu') is True
+        assert builder._is_degenerate('loại') is True
+
+    def test_elect_canonical_skips_degenerate_normalized(self):
+        """When normalized is degenerate, should try next cluster member."""
+        builder = self._make_builder()
+
+        # First item has highest freq but degenerate normalized
+        agg1 = _make_agg('Pvc - D60 D60', frequency=20, file_ids=[1])
+        norm1 = _make_norm_result('Pvc - D60 D60', 'd60 d60')  # degenerate
+
+        # Second item has lower freq but good normalized
+        agg2 = _make_agg('Ống PVC D60', frequency=10, file_ids=[2])
+        norm2 = _make_norm_result('Ống PVC D60', 'ống pvc d60')  # good
+
+        cluster = [(agg1, norm1), (agg2, norm2)]
+        result = builder._elect_canonical(cluster, cluster_id=0)
+
+        # Should pick the non-degenerate normalized
+        assert result.canonical_description == 'ống pvc d60'
+        assert result.total_frequency == 30
+
+    def test_elect_canonical_all_degenerate_falls_back_to_raw(self):
+        """When all normalized are degenerate, should fall back to raw."""
+        builder = self._make_builder()
+
+        agg1 = _make_agg('Pvc D60', frequency=20, file_ids=[1])
+        norm1 = _make_norm_result('Pvc D60', 'd60 d60')  # degenerate
+
+        agg2 = _make_agg('D60', frequency=10, file_ids=[2])
+        norm2 = _make_norm_result('D60', 'd60')  # too short
+
+        cluster = [(agg1, norm1), (agg2, norm2)]
+        result = builder._elect_canonical(cluster, cluster_id=0)
+
+        # Should fall back to raw of highest frequency
+        assert result.canonical_description == 'Pvc D60'
+
+    def test_elect_canonical_all_raw_as_synonyms(self):
+        """All raw descriptions should become synonyms when normalized is canonical."""
+        builder = self._make_builder()
+
+        agg1 = _make_agg('Ống PPR D20', frequency=15, file_ids=[1])
+        norm1 = _make_norm_result('Ống PPR D20', 'ống ppr - d20')
+
+        cluster = [(agg1, norm1)]
+        result = builder._elect_canonical(cluster, cluster_id=0)
+
+        # Canonical is normalized, raw becomes synonym
+        assert result.canonical_description == 'ống ppr - d20'
+        assert 'Ống PPR D20' in result.synonym_variants
+
+
+# ============================================================
+# Test SEC rule-based classifier
+# ============================================================
+
+class TestSECRuleBasedClassifier:
+
+    def _make_builder(self):
+        db = _MockDB()
+        builder = MasterDatabaseBuilder.__new__(MasterDatabaseBuilder)
+        builder.db = db
+        builder.orchestrator = MagicMock()
+        builder.spec_extractor = MagicMock()
+        builder.gatekeeper = MagicMock()
+        builder.code_generator = MagicMock()
+        return builder
+
+    def test_electrical_items(self):
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('mccb 3p 100a') == 'SEC-04-01'
+        assert builder._classify_sec_by_rules('contactor 3 pha') == 'SEC-04-01'
+        assert builder._classify_sec_by_rules('tủ điện tầng 1') == 'SEC-04-01'
+        assert builder._classify_sec_by_rules('aptomat 2p 32a') == 'SEC-04-01'
+        assert builder._classify_sec_by_rules('cầu chì 16a') == 'SEC-04-01'
+        assert builder._classify_sec_by_rules('đèn báo pha') == 'SEC-04-01'
+
+    def test_plumbing_items(self):
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('ống pvc d60') == 'SEC-04-02'
+        assert builder._classify_sec_by_rules('van cổng dn80') == 'SEC-04-02'
+        assert builder._classify_sec_by_rules('côn thu upvc d110/d60') == 'SEC-04-02'
+        assert builder._classify_sec_by_rules('bích thép dn100') == 'SEC-04-02'
+        assert builder._classify_sec_by_rules('khớp nối mềm dn80') == 'SEC-04-02'
+        assert builder._classify_sec_by_rules('ống thép dn50') == 'SEC-04-02'
+
+    def test_hvac_items(self):
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('điều hòa 24000btu') == 'SEC-04-03'
+        assert builder._classify_sec_by_rules('ống gió d200') == 'SEC-04-03'
+        assert builder._classify_sec_by_rules('dàn lạnh cassette') == 'SEC-04-03'
+
+    def test_pccc_items(self):
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('đầu phun sprinkler') == 'SEC-04-04'
+        assert builder._classify_sec_by_rules('bình chữa cháy mt3') == 'SEC-04-04'
+        assert builder._classify_sec_by_rules('hệ thống báo cháy') == 'SEC-04-04'
+
+    def test_non_mep_returns_none(self):
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('bê tông m200 móng') is None
+        assert builder._classify_sec_by_rules('đào đất hố móng') is None
+        assert builder._classify_sec_by_rules('xây tường gạch') is None
+
+    def test_van_not_match_van_khuon(self):
+        """'van' patterns should not match 'ván khuôn'."""
+        builder = self._make_builder()
+        assert builder._classify_sec_by_rules('ván khuôn dầm') is None

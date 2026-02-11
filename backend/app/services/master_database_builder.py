@@ -16,6 +16,7 @@ Step 3 — CODING & TAGGING:
 """
 import json
 import logging
+import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -407,7 +408,7 @@ class MasterDatabaseBuilder:
         if norm_result is None:
             norm_result = self.orchestrator.normalize(item.canonical_description)
 
-        # Derive SEC code: prefer ClassifierService, fallback to work category mapping
+        # Derive SEC code: prefer ClassifierService, then rule-based MEP, fallback to work category mapping
         sec_code = None
         classifier = self._get_classifier()
         if classifier:
@@ -418,6 +419,13 @@ class MasterDatabaseBuilder:
                     sec_code = classify_results[0][0]
             except Exception as e:
                 logger.warning(f"ClassifierService failed, falling back to mapping: {e}")
+
+        # Rule-based MEP sub-classification (runs after ML, before WorkCategory fallback)
+        if not sec_code or sec_code == 'SEC-00' or sec_code == 'SEC-04':
+            desc_for_rules = norm_result.normalized or item.canonical_description
+            rule_sec = self._classify_sec_by_rules(desc_for_rules)
+            if rule_sec:
+                sec_code = rule_sec
 
         if not sec_code:
             sec_code = WORK_CATEGORY_TO_SEC.get(
@@ -631,14 +639,53 @@ class MasterDatabaseBuilder:
             for indices in clusters_map.values()
         ]
 
+    def _is_degenerate(self, text: str) -> bool:
+        """
+        Check if a normalized description is degenerate (unusable as canonical).
+
+        Rejects:
+        - Too short (< 5 characters)
+        - Contains repeated words ("ống ống", "d60 d60")
+        - Too generic (single common word)
+        """
+        if not text or len(text.strip()) < 5:
+            return True
+
+        words = text.lower().split()
+        if not words:
+            return True
+
+        # Check for repeated consecutive words: "ống ống", "d60 d60"
+        for i in range(len(words) - 1):
+            if words[i] == words[i + 1] and len(words[i]) >= 2:
+                return True
+
+        # Check for too generic (single word that is a common filler)
+        generic_words = {'đầu', 'ra', 'vào', 'cái', 'bộ', 'hệ', 'loại', 'kiểu'}
+        if len(words) == 1 and words[0] in generic_words:
+            return True
+
+        # Check if entire description is just repeated tokens
+        unique_words = set(words)
+        if len(unique_words) == 1 and len(words) > 1:
+            return True
+
+        return False
+
     def _elect_canonical(
         self,
         cluster: List[Tuple[AggregatedItem, NormalizationResult]],
         cluster_id: int,
     ) -> StandardizedItem:
         """
-        Pick the highest-frequency description as canonical.
-        Tiebreaker: longest description (most specific).
+        Pick the best NORMALIZED description as canonical.
+
+        Strategy:
+        1. Sort by frequency (desc), then description length (desc)
+        2. Use normalized description from the winner
+        3. If normalized is degenerate, try other cluster members
+        4. If all normalized are degenerate, fall back to raw description
+        5. ALL raw descriptions (including the one chosen) become synonyms
         """
         # Sort: highest frequency first, then longest description
         cluster.sort(
@@ -646,33 +693,106 @@ class MasterDatabaseBuilder:
             reverse=True,
         )
 
-        canonical_agg, canonical_norm = cluster[0]
-
-        # Collect all file IDs across cluster
+        # Collect all file IDs and descriptions across cluster
         all_file_ids: Set[int] = set()
-        all_descriptions: Set[str] = set()
+        all_raw_descriptions: Set[str] = set()
         total_freq = 0
 
         for agg, _ in cluster:
             all_file_ids.update(agg.source_file_ids)
-            all_descriptions.update(agg.raw_descriptions)
+            all_raw_descriptions.update(agg.raw_descriptions)
             total_freq += agg.frequency
 
-        # Synonyms are all non-canonical descriptions
-        canonical_desc = canonical_agg.representative_description
+        # Find best non-degenerate normalized description
+        canonical_desc = None
+        canonical_norm = cluster[0][1]  # default norm result
+
+        for agg, norm in cluster:
+            normalized = norm.normalized
+            if normalized and not self._is_degenerate(normalized):
+                canonical_desc = normalized
+                canonical_norm = norm
+                break
+
+        # If all normalized are degenerate, fall back to raw (highest freq)
+        if canonical_desc is None:
+            canonical_desc = cluster[0][0].representative_description
+            canonical_norm = cluster[0][1]
+            logger.warning(
+                f"All normalized descriptions degenerate in cluster {cluster_id}, "
+                f"falling back to raw: '{canonical_desc}'"
+            )
+
+        # ALL raw descriptions become synonyms (including the original canonical raw)
         synonym_variants = [
-            d for d in all_descriptions if d != canonical_desc
+            d for d in all_raw_descriptions if d != canonical_desc
         ]
 
         return StandardizedItem(
             canonical_description=canonical_desc,
-            canonical_unit=canonical_agg.unit,
+            canonical_unit=cluster[0][0].unit,
             total_frequency=total_freq,
             synonym_variants=synonym_variants,
             normalization_result=canonical_norm,
             cluster_id=cluster_id,
             source_file_ids=sorted(all_file_ids),
         )
+
+    # MEP sub-category rules for rule-based SEC classification
+    _MEP_SEC_RULES = {
+        'SEC-04-01': [  # Electrical
+            r'\bmccb\b', r'\bmcb\b', r'\bcontactor\b', r'\baptomat\b',
+            r'\bcầu\s+chì\b', r'\bđèn\s+báo\b', r'\btủ\s+điện\b',
+            r'\bthanh\s+cái\b', r'\bcáp\s+cu\b', r'\bxlpe\b',
+            r'\bcáp\s+điện\b', r'\bdây\s+điện\b', r'\btủ\s+điều\s+khiển\b',
+            r'\bcầu\s+dao\b', r'\brơ\s*le\b', r'\bbiến\s+áp\b',
+        ],
+        'SEC-04-02': [  # Plumbing
+            r'\bống\s+hdpe\b', r'\bống\s+pvc\b', r'\bống\s+upvc\b',
+            r'\bống\s+ppr\b', r'\bống\s+thép\b', r'\bống\s+nhựa\b',
+            r'\bvan\s+cổng\b', r'\bvan\s+bướm\b', r'\bvan\s+bi\b',
+            r'\bvan\s+một\s+chiều\b', r'\bvan\s+cầu\b',
+            r'\bcôn\s+thu\b', r'\bcút\b(?!\s+điện)', r'\btê\b(?!\s+bào)',
+            r'\bbích\b', r'\bkhớp\s+nối\b',
+            r'\bđồng\s+hồ\s+nước\b', r'\bđồng\s+hồ\s+đo\b',
+            r'\bbơm\s+nước\b', r'\bbơm\s+chìm\b',
+            r'\bống\s+gang\b', r'\bống\s+inox\b',
+        ],
+        'SEC-04-03': [  # HVAC
+            r'\bđiều\s+hòa\b', r'\bthông\s+gió\b', r'\bahu\b', r'\bfcu\b',
+            r'\bống\s+gió\b', r'\bdàn\s+lạnh\b', r'\bdàn\s+nóng\b',
+            r'\bmáy\s+lạnh\b', r'\bchiller\b', r'\bcooling\b',
+        ],
+        'SEC-04-04': [  # PCCC (Fire Protection)
+            r'\bpccc\b', r'\bbáo\s+cháy\b', r'\bsprinkler\b',
+            r'\bbình\s+chữa\s+cháy\b', r'\bchữa\s+cháy\b',
+            r'\bđầu\s+phun\b', r'\btủ\s+cứu\s+hỏa\b',
+        ],
+    }
+
+    def _classify_sec_by_rules(self, description: str) -> Optional[str]:
+        """
+        Rule-based MEP sub-category classifier.
+
+        Runs AFTER ML classifier, BEFORE WorkCategory fallback.
+        Uses word boundary regex to avoid false matches
+        (e.g., "van" should not match "ván khuôn").
+
+        Returns:
+            SEC sub-code (e.g., 'SEC-04-02') or None if no match.
+        """
+        desc_lower = description.lower()
+
+        for sec_code, patterns in self._MEP_SEC_RULES.items():
+            for pattern in patterns:
+                if re.search(pattern, desc_lower):
+                    logger.debug(
+                        f"SEC rule match: pattern '{pattern}' → {sec_code} "
+                        f"for '{description[:50]}'"
+                    )
+                    return sec_code
+
+        return None
 
     def _apply_pareto(
         self,

@@ -3,6 +3,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pickle
 import json
+import re
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 import logging
@@ -187,24 +188,68 @@ class SECClassifier:
         
         return results
     
+    # Hard-coded MEP sub-category rules (priority over database keywords)
+    _HARDCODED_MEP_RULES: Dict[str, List[str]] = {
+        'SEC-04-01': [  # Electrical
+            r'\bmccb\b', r'\bmcb\b', r'\bcontactor\b', r'\baptomat\b',
+            r'\bcầu\s+chì\b', r'\bđèn\s+báo\b', r'\btủ\s+điện\b',
+            r'\bthanh\s+cái\b', r'\bcáp\s+cu\b', r'\bxlpe\b',
+            r'\bcầu\s+dao\b', r'\bcáp\s+điện\b', r'\bdây\s+điện\b',
+            r'\brơ\s*le\b', r'\bbiến\s+áp\b',
+        ],
+        'SEC-04-02': [  # Plumbing
+            r'\bống\s+hdpe\b', r'\bống\s+pvc\b', r'\bống\s+upvc\b',
+            r'\bống\s+ppr\b', r'\bống\s+thép\b', r'\bống\s+nhựa\b',
+            r'\bvan\s+cổng\b', r'\bvan\s+bướm\b', r'\bvan\s+bi\b',
+            r'\bvan\s+một\s+chiều\b',
+            r'\bcôn\s+thu\b', r'\bcút\b(?!\s+điện)',
+            r'\bbích\b(?!\s+khuôn)', r'\bkhớp\s+nối\b',
+            r'\bđồng\s+hồ\s+nước\b', r'\bbơm\s+nước\b', r'\bbơm\s+chìm\b',
+            r'\bống\s+gang\b', r'\bống\s+inox\b',
+        ],
+        'SEC-04-03': [  # HVAC
+            r'\bđiều\s+hòa\b', r'\bthông\s+gió\b', r'\bahu\b', r'\bfcu\b',
+            r'\bống\s+gió\b', r'\bdàn\s+lạnh\b', r'\bdàn\s+nóng\b',
+            r'\bmáy\s+lạnh\b', r'\bchiller\b',
+        ],
+        'SEC-04-04': [  # Fire Protection (PCCC)
+            r'\bpccc\b', r'\bbáo\s+cháy\b', r'\bsprinkler\b',
+            r'\bbình\s+chữa\s+cháy\b', r'\bchữa\s+cháy\b',
+            r'\bđầu\s+phun\b', r'\btủ\s+cứu\s+hỏa\b',
+        ],
+    }
+
     def _rule_based_match(self, description: str) -> Optional[str]:
         """
-        Perform rule-based keyword matching
-        Returns SEC code if high-confidence match found, None otherwise
+        Perform rule-based keyword matching.
+        Returns SEC code if high-confidence match found, None otherwise.
+
+        Priority:
+        1. Hard-coded MEP sub-category rules (highest priority)
+        2. Database-loaded keywords
         """
         desc_lower = description.lower()
-        
-        # Check each SEC code's keywords
+
+        # Priority 1: Hard-coded MEP sub-category rules
+        for sec_code, patterns in self._HARDCODED_MEP_RULES.items():
+            for pattern in patterns:
+                if re.search(pattern, desc_lower):
+                    logger.debug(
+                        f"Hardcoded MEP rule match: '{pattern}' in "
+                        f"'{description[:50]}' -> {sec_code}"
+                    )
+                    return sec_code
+
+        # Priority 2: Database-loaded keywords
         for sec_code, keywords in self.keywords_dict.items():
             if not keywords:
                 continue
-            
-            # If any keyword is found in description
+
             for keyword in keywords:
                 if keyword and keyword in desc_lower:
                     logger.debug(f"Rule match: '{keyword}' in '{description}' -> {sec_code}")
                     return sec_code
-        
+
         return None
     
     def get_sec_info(self, sec_code: str) -> Optional[Dict]:

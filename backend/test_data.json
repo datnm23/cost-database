@@ -1,0 +1,1190 @@
+[
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": "Đào đất không thích hợp",
+    "expected": "Đào đất - Đất không thích hợp - Theo thiết kế",
+    "note": "Gán mặc định spec"
+  },
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": "Đào phá dỡ nền đường hiện trạng",
+    "expected": "Đào phá dỡ - Nền đường - Hiện trạng",
+    "note": "Tách hành động phá dỡ"
+  },
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": "Đào khuôn đường",
+    "expected": "Đào khuôn đường - Đất cấp 3 - Máy/Thủ công",
+    "note": "Gán mặc định phương biện pháp"
+  },
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": " đầm chặt K95 (đất mua mới)",
+    "expected": "Đắp đất nền - Đất K95 - Mua mới",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": "Đắp đất đầm chặt K98  (đất tận dụng, đơn giá bao gồm cả vận chuyển nội bộ công trường từ nơi đào đến nơi đắp)",
+    "expected": "Đắp đất nền - Đất K98 - Tận dụng",
+    "note": "Chuẩn hóa nguồn gốc đất tận dụng"
+  },
+  {
+    "category": "GIAO_THONG_NEN_DUONG",
+    "original": "Vận chuyển đất, phế thải ra bãi đổ theo quy định (Nhà thầu lo chi phí giấy phép bãi đổ)",
+    "expected": "Vận chuyển - Đất/Phế thải - Ra bãi thải",
+    "note": "Xác định đích đến"
+  },
+  {
+    "category": "GIAO_THONG_MAT_DUONG",
+    "original": "Thi công móng cấp phối đá dăm lớp dưới",
+    "expected": "Móng đường - CPĐD - Lớp dưới",
+    "note": "Giữ phân lớp kết cấu"
+  },
+  {
+    "category": "GIAO_THONG_MAT_DUONG",
+    "original": "Tưới lớp thấm bám mặt đường bằng nhựa pha dầu, lượng nhựa 1kg/m2",
+    "expected": "Tưới nhựa - Thấm bám - 1kg/m2",
+    "note": "Đưa định mức vào spec"
+  },
+  {
+    "category": "GIAO_THONG_MAT_DUONG",
+    "original": "Rải thảm mặt đường BTN C19 - Chiều dày mặt đường đã lèn ép 7cm",
+    "expected": "Mặt đường - Bê tông nhựa C19 - Dày 7cm",
+    "note": "Bắt buộc lấy mác nhựa C19 và chiều dày"
+  },
+  {
+    "category": "GIAO_THONG_BO_VIA",
+    "original": "Bó vỉa đá KT 230x260x1000mm vỉa hè (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 230x260x1000",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "GIAO_THONG_BO_VIA",
+    "original": "Bó vỉa đá vị trí vuốt nối (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - Vuốt nối",
+    "note": "Map vị trí đặc biệt"
+  },
+  {
+    "category": "GIAO_THONG_BO_VIA",
+    "original": "Tấm đan rãnh đá KT 30x50x5cm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Tấm đan rãnh - Đá - 300x500x50",
+    "note": "Ưu tiên Tấm đan > Đá, đổi cm sang mm"
+  },
+  {
+    "category": "GIAO_THONG_BO_VIA",
+    "original": "Bê tông lót móng bó vỉa, tấm đan",
+    "expected": "Bê tông lót - M100 - Đá 1x2",
+    "note": "Tự động điền M100 cho bê tông lót"
+  },
+  {
+    "category": "GIAO_THONG_BO_VIA",
+    "original": "Ván khuôn bê tông lót móng bó vỉa, tấm đan",
+    "expected": "Ván khuôn - Lót móng - Theo thiết kế",
+    "note": "Không gán chất liệu ảo (phủ phim)"
+  },
+  {
+    "category": "GIAO_THONG_ATGT",
+    "original": "Biển báo tam giác A70cm (bao gồm cả cột đỡ sơn trắng đỏ...)",
+    "expected": "Biển báo - Tam giác - A70cm Cột sơn trắng đỏ",
+    "note": "Gom quy cách vào spec"
+  },
+  {
+    "category": "GIAO_THONG_ATGT",
+    "original": "Biển chỉ hướng 414A KT 100x160cm",
+    "expected": "Biển báo - Chỉ hướng 414A - 100x160cm",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_DAO_DAP",
+    "original": "Đào đất, cát móng cống, mương, hố ga",
+    "expected": "Đào đất - Đất cấp 3 - Cống/Mương/Hố ga",
+    "note": "Gom nhóm đối tượng đào"
+  },
+  {
+    "category": "THOAT_NUOC_DAO_DAP",
+    "original": "Đào đất, cát cống hộp đôi",
+    "expected": "Đào đất - Đất cấp 3 - Cống hộp đôi",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_DAO_DAP",
+    "original": "Đắp đất, cát, đầm chặt, độ chặt yêu cầu K=0,95",
+    "expected": "Đắp đất - Đất K95 - Tận dụng",
+    "note": "K95 là chất liệu"
+  },
+  {
+    "category": "THOAT_NUOC_CONG",
+    "original": "Cung cấp, lắp đặt cống BTCT D300 dưới đường - tải trọng TC",
+    "expected": "Cống thoát nước - BTCT - D300 Tải trọng TC",
+    "note": "Giữ thông tin tải trọng"
+  },
+  {
+    "category": "THOAT_NUOC_CONG",
+    "original": "Cống hộp đôi, cống hộp 3x3",
+    "expected": "Cống hộp - BTCT - Đôi 3x3m",
+    "note": "Chuẩn hóa tên cống hộp"
+  },
+  {
+    "category": "THOAT_NUOC_CONG",
+    "original": "Cọc tre gia cố nền",
+    "expected": "Cọc tre - Gia cố nền - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_HO_GA",
+    "original": "Bê tông đáy hố ga (bao gồm lắp đặt - hoàn thiện theo thiết kế)",
+    "expected": "Bê tông - M200 - Đá 1x2",
+    "note": "Gán mác mặc định kết cấu (M200) khi thiếu"
+  },
+  {
+    "category": "THOAT_NUOC_HO_GA",
+    "original": "Cung cấp, lắp đặt nắp hố ga gang thăm loại 1 chịu tải trọng D400 lòng đường",
+    "expected": "Nắp hố ga - Gang - D400 Lòng đường",
+    "note": "Tách tải trọng và vị trí"
+  },
+  {
+    "category": "THOAT_NUOC_MANG_THU",
+    "original": "Cung cấp, lắp đặt song chắn rác bằng gang kích thước 530x960 sản phẩm EN124 cấp C; tải trọng >=250kN",
+    "expected": "Song chắn rác - Gang EN124 - 530x960 250kN",
+    "note": "Gom kích thước và tải trọng"
+  },
+  {
+    "category": "THOAT_NUOC_ONG_PVC",
+    "original": "Y THU D200-D140 (135 độ)",
+    "expected": "Y thu - uPVC - D200/140 135 độ",
+    "note": "Chuẩn hóa phụ kiện ống"
+  },
+  {
+    "category": "MEP_DIEN_TU_TONG",
+    "original": "Tủ gom công tơ hạ thế 500V- Vỏ tủ điện tôn dày 2,0mm mở 2 mặt...",
+    "expected": "Tủ điện - Tủ gom công tơ",
+    "note": "Rút gọn mô tả, bỏ IP nếu không có trong description"
+  },
+  {
+    "category": "MEP_DIEN_THIET_BI",
+    "original": "MCCB-3P-250A-36kA",
+    "expected": "MCCB - 3P - 250A 36kA",
+    "note": "Tách 3P ra ngăn riêng"
+  },
+  {
+    "category": "MEP_DIEN_THIET_BI",
+    "original": "MCCB-3P-160-36kA",
+    "expected": "MCCB - 3P - 160A 36kA",
+    "note": "Tự động thêm đơn vị A"
+  },
+  {
+    "category": "MEP_DIEN_THIET_BI",
+    "original": "MCB-1P-40A-6kA",
+    "expected": "MCB - 1P - 40A 6kA",
+    "note": ""
+  },
+  {
+    "category": "MEP_DIEN_THIET_BI",
+    "original": "Công tơ 3P-20(40)A",
+    "expected": "Công tơ điện - 3P - 20(40)A",
+    "note": "Chuẩn hóa tên thiết bị"
+  },
+  {
+    "category": "MEP_DIEN_THIET_BI",
+    "original": "Đèn báo pha (xanh, đỏ, vàng)",
+    "expected": "Đèn báo pha - Xanh, Đỏ, Vàng - Theo thiết kế",
+    "note": "Màu sắc đưa vào biến thể"
+  },
+  {
+    "category": "MEP_DIEN_CAP",
+    "original": "Cu/XLPE/PVC/DSTA/PVC 3x35+1x16mm2",
+    "expected": "Cáp điện - Cu/XLPE/PVC/DSTA/PVC - 3x35+1x16mm2",
+    "note": "Bảo toàn chuỗi ký tự đặc biệt"
+  },
+  {
+    "category": "MEP_DIEN_CAP",
+    "original": "Cáp Cu/XLPE/PVC 4X240mm2",
+    "expected": "Cáp điện - Cu/XLPE/PVC - 4x240mm2",
+    "note": ""
+  },
+  {
+    "category": "MEP_DIEN_ONG_LUON",
+    "original": "Ống HDPE 195/150",
+    "expected": "Ống nhựa - HDPE - D195/150",
+    "note": "Giữ cặp kích thước slash"
+  },
+  {
+    "category": "MEP_CHIEU_SANG",
+    "original": "Cột đèn bát giác côn cần đơn cao 8m kèm bảng điện cửa cột...",
+    "expected": "Cột đèn - Bát giác côn - H8m Cần đơn",
+    "note": "Tách chiều cao H và loại cần"
+  },
+  {
+    "category": "MEP_CHIEU_SANG",
+    "original": "Bộ đèn cầu D400 bóng LED 25W chiếu sáng vỉa hè",
+    "expected": "Đèn chiếu sáng - Cầu D400 - LED 25W",
+    "note": ""
+  },
+  {
+    "category": "MEP_CHIEU_SANG",
+    "original": "Cọc tiếp địa L63x63x6, 2.5m",
+    "expected": "Cọc tiếp địa - Thép L63x63x6 - L2.5m",
+    "note": "Chuẩn hóa kích thước thép V"
+  },
+  {
+    "category": "MEP_CAP_NUOC",
+    "original": "Ống HDPE D315 PN8 PE100",
+    "expected": "Ống nhựa - HDPE - D315 PN8",
+    "note": "Tách áp lực PN"
+  },
+  {
+    "category": "MEP_CAP_NUOC",
+    "original": "Đai khởi thủy gang D200",
+    "expected": "Đai khởi thủy - Gang - D200",
+    "note": ""
+  },
+  {
+    "category": "MEP_CAP_NUOC",
+    "original": "Khớp nối mềm EE DN200",
+    "expected": "Khớp nối mềm - EE - DN200",
+    "note": ""
+  },
+  {
+    "category": "MEP_CAP_NUOC",
+    "original": "Van cổng ren đồng DN40",
+    "expected": "Van cổng - Đồng ren - DN40",
+    "note": "Tách chất liệu và kiểu nối"
+  },
+  {
+    "category": "MEP_CAP_NUOC",
+    "original": "Đồng hồ đo nước DN80",
+    "expected": "Đồng hồ nước - DN80 - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "MEP_PCCC",
+    "original": "Bơm chữa cháy (bơm điện), loại trục ngang, Q=80l/s, H=56m, P=75kW",
+    "expected": "Bơm chữa cháy - Điện - Q=80l/s H=56m P=75kW",
+    "note": "Gom toàn bộ thông số kỹ thuật vào spec, chỉ cần Điện không cần hướng trục"
+  },
+  {
+    "category": "MEP_PCCC",
+    "original": "Bình tích áp 200L, loại bình đứng, áp lực làm việc 16bar",
+    "expected": "Bình tích áp - Đứng - 200L 16bar",
+    "note": ""
+  },
+  {
+    "category": "MEP_PCCC",
+    "original": "Trụ cứu hỏa DN100",
+    "expected": "Trụ cứu hỏa - Gang - DN100",
+    "note": ""
+  },
+  {
+    "category": "MEP_PCCC",
+    "original": "Bình chữa cháy CO2 MT3",
+    "expected": "Bình chữa cháy - CO2 - MT3",
+    "note": ""
+  },
+  {
+    "category": "GENERAL",
+    "original": "Vật tư phụ đấu nối hoàn thiện tủ (máng cáp, đầu cốt đồng, băng keo…)",
+    "expected": "Vật tư phụ - Đấu nối tủ điện - Trọn gói",
+    "note": "Gom nhóm vật tư phụ"
+  },
+  {
+    "category": "GENERAL",
+    "original": "Chi phí kiểm định, thí nghiệm…",
+    "expected": "Chi phí - Kiểm định/Thí nghiệm - Trọn gói",
+    "note": "Nhóm chi phí chung"
+  },
+  {
+    "category": "SEWAGE_PIPING",
+    "original": "Cung cấp, lắp đặt ống nhựa HDPE đường kính 315mm",
+    "expected": "Ống nhựa - HDPE - D315",
+    "note": "Chuẩn hóa tên ống và đường kính"
+  },
+  {
+    "category": "SEWAGE_PIPING",
+    "original": "Cung cấp, lắp đặt ống nhựa HDPE đường kính 160mm",
+    "expected": "Ống nhựa - HDPE - D160",
+    "note": ""
+  },
+  {
+    "category": "SEWAGE_PIPING",
+    "original": "Cút HDPE D315",
+    "expected": "Cút - HDPE - D315",
+    "note": "Giữ nguyên tên phụ kiện"
+  },
+  {
+    "category": "SEWAGE_PIPING",
+    "original": "Chếch HDPE D160",
+    "expected": "Chếch - HDPE - D160",
+    "note": ""
+  },
+  {
+    "category": "SEWAGE_MANHOLE",
+    "original": "Bê tông đáy hố ga",
+    "expected": "Bê tông - M200 - Đá 1x2",
+    "note": "Gán mác kết cấu mặc định M200"
+  },
+  {
+    "category": "SEWAGE_MANHOLE",
+    "original": "Nắp hố ga composite chịu tải trọng 12.5 tấn (cung cấp và lắp dựng)",
+    "expected": "Nắp hố ga - Composite - 12.5 tấn",
+    "note": "Tách tải trọng"
+  },
+  {
+    "category": "SEWAGE_PUMP",
+    "original": "Bơm chìm thoát nước, Q=110m3/h,  H=30m",
+    "expected": "Bơm chìm nước thải - Điện - Q=110m3/h H=30m",
+    "note": "Gom toàn bộ thông số bơm vào Spec"
+  },
+  {
+    "category": "SEWAGE_PUMP",
+    "original": "Khớp nối mềm EE DN150",
+    "expected": "Khớp nối mềm - EE - DN150",
+    "note": ""
+  },
+  {
+    "category": "SEWAGE_PUMP",
+    "original": "Van 1 chiều nối bích DN150",
+    "expected": "Van 1 chiều - Nối bích - DN150",
+    "note": ""
+  },
+  {
+    "category": "WATER_PIPE",
+    "original": "Ống HDPE D315 PN8 PE100",
+    "expected": "Ống nhựa - HDPE - D315 PN8",
+    "note": "Tách áp lực PN8"
+  },
+  {
+    "category": "WATER_PIPE",
+    "original": "Ống PPR D25 PN8",
+    "expected": "Ống nhựa - PPR - D25 PN8",
+    "note": ""
+  },
+  {
+    "category": "WATER_DEVICE",
+    "original": "Đai khởi thủy gang D200",
+    "expected": "Đai khởi thủy - Gang - D200",
+    "note": ""
+  },
+  {
+    "category": "WATER_DEVICE",
+    "original": "Van cổng ren đồng DN40",
+    "expected": "Van cổng - Đồng ren - DN40",
+    "note": "Tách chất liệu đồng và kiểu nối ren"
+  },
+  {
+    "category": "WATER_DEVICE",
+    "original": "Đồng hồ đo nước DN80",
+    "expected": "Đồng hồ nước - DN80 - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "ELEC_PANEL",
+    "original": "Tủ gom công tơ hạ thế 500V- Vỏ tủ điện tôn dày 2,0mm...",
+    "expected": "Tủ điện - Tủ gom công tơ",
+    "note": "Rút gọn mô tả, bỏ dimensions/IP nếu không có trong description"
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "MCCB-3P-400A-50kA",
+    "expected": "MCCB - 3P - 400A 50kA",
+    "note": "Tách 3P, gom A và kA"
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "MCB-3P-40A-10kA",
+    "expected": "MCB - 3P - 40A 10kA",
+    "note": ""
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "Công tơ 1P-10(40)A",
+    "expected": "Công tơ điện - 1P - 10(40)A",
+    "note": "Chuẩn hóa tên thiết bị"
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "Đèn báo pha (xanh, đỏ, vàng)",
+    "expected": "Đèn báo pha - Xanh, Đỏ, Vàng - Theo thiết kế",
+    "note": "Đưa màu sắc vào biến thể"
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "Cầu chì hạ thế 220v, 1 pha 5A",
+    "expected": "Cầu chì - Hạ thế - 1P 5A 220V",
+    "note": ""
+  },
+  {
+    "category": "FIRE_PUMP",
+    "original": "Bơm bù áp (bơm điện) loại trục đứng, Q=5m3/h,  H=65m, P=7.5kW",
+    "expected": "Bơm bù áp - Điện - Q=5m3/h H=65m P=7.5kW",
+    "note": "Gom thông số kỹ thuật bơm, chỉ cần Điện không cần hướng trục"
+  },
+  {
+    "category": "FIRE_DEVICE",
+    "original": "Bình tích áp 200L, loại bình đứng, áp lực làm việc 16bar",
+    "expected": "Bình tích áp - Đứng - 200L 16bar",
+    "note": ""
+  },
+  {
+    "category": "FIRE_DEVICE",
+    "original": "Alarm valve DN200",
+    "expected": "Van báo động (Alarm Valve) - Gang - DN200",
+    "note": ""
+  },
+  {
+    "category": "FIRE_DEVICE",
+    "original": "Hộp đựng bình chữa cháy",
+    "expected": "Hộp đựng bình chữa cháy - Thép sơn tĩnh điện - Theo thiết kế",
+    "note": "Gán chất liệu mặc định phổ biến"
+  },
+  {
+    "category": "EMBANKMENT",
+    "original": "Đóng cọc tre gia cố nền đất móng",
+    "expected": "Cọc tre - Gia cố nền - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "EMBANKMENT",
+    "original": "Xây đá hộc",
+    "expected": "Xây đá - Đá hộc - Vữa M100",
+    "note": "Gán vữa mặc định"
+  },
+  {
+    "category": "ELV_PIPE",
+    "original": "Ống HDPE D40/30",
+    "expected": "Ống nhựa - HDPE - D40/30",
+    "note": ""
+  },
+  {
+    "category": "ELV_MANHOLE",
+    "original": "Bê tông đáy hố ga 200#",
+    "expected": "Bê tông - M200 - Đá 1x2",
+    "note": "Quy đổi mác 200# sang M200"
+  },
+  {
+    "category": "ELV_MANHOLE",
+    "original": "Xây bể cáp, hố ga các loại",
+    "expected": "Xây bể cáp - Gạch - Theo thiết kế",
+    "note": "Chuẩn hóa thành Xây bể cáp"
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Cút 90 độ PPR D25 PN10",
+    "expected": "Cút 90 độ - PPR - D25 PN10",
+    "note": "Giữ góc độ và áp lực"
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Chếch 45 độ ống PPR D63",
+    "expected": "Chếch 45 độ - PPR - D63",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Tê đều PPR D50",
+    "expected": "Tê đều - PPR - D50",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Tê thu PPR D50/32",
+    "expected": "Tê thu - PPR - D50/32",
+    "note": "Giữ cặp kích thước thu"
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Măng sông ren trong PPR D20",
+    "expected": "Măng sông ren trong - PPR - D20",
+    "note": "Ghi rõ loại ren trong Object"
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Côn thu PPR D40-25",
+    "expected": "Côn thu - PPR - D40/25",
+    "note": "Chuẩn hóa dấu gạch nối thành slash"
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Van bi tay gạt rắc co đôi PPR D32",
+    "expected": "Van bi rắc co đôi - PPR - D32 Tay gạt",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_PPR",
+    "original": "Rắc co ren ngoài PPR D25",
+    "expected": "Rắc co ren ngoài - PPR - D25",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_HDPE",
+    "original": "Đai khởi thủy HDPE D110 ra D50",
+    "expected": "Đai khởi thủy - HDPE - D110/50",
+    "note": "Gom kích thước nhánh"
+  },
+  {
+    "category": "MEP_PIPING_HDPE",
+    "original": "Bích hàn lồng HDPE D160 PN10",
+    "expected": "Mặt bích (Bích hàn) - HDPE - D160 PN10",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_HDPE",
+    "original": "Nút bịt hàn HDPE D200",
+    "expected": "Đầu bịt/Nút bịt - HDPE - D200",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_HDPE",
+    "original": "Tê hàn HDPE D315",
+    "expected": "Tê hàn - HDPE - D315",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT_HDPE",
+    "original": "Ống nhựa xoắn HDPE 195/150",
+    "expected": "Ống luồn dây - HDPE Gân xoắn - D195/150",
+    "note": "Giữ cặp kích thước, bổ sung 'Gân xoắn'"
+  },
+  {
+    "category": "ELEC_CONDUIT_HDPE",
+    "original": "Ống luồn dây HDPE D160/125",
+    "expected": "Ống luồn dây - HDPE Gân xoắn - D160/125",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT_HDPE",
+    "original": "Ống HDPE 105/80",
+    "expected": "Ống nhựa - HDPE - D105/80",
+    "note": "Ống HDPE không có suffix gân xoắn thì là Ống nhựa, phân biệt ống luồn dây bằng hậu tố spec"
+  },
+  {
+    "category": "ELEC_CONDUIT_ACC",
+    "original": "Măng sông nối ống HDPE 195/150",
+    "expected": "Măng sông nối ống - HDPE - D195/150",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT_ACC",
+    "original": "Nút loe ống HDPE 105/80",
+    "expected": "Nút loe - HDPE - D105/80",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT_ACC",
+    "original": "Nút bịt đầu ống HDPE 85/65",
+    "expected": "Nút bịt - HDPE - D85/65",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT_ACC",
+    "original": "Gối đỡ ống HDPE",
+    "expected": "Gối đỡ ống - Bê tông/Composite - Theo thiết kế",
+    "note": "Phụ kiện không có thông số cụ thể"
+  },
+  {
+    "category": "CIVIL_EARTHWORKS",
+    "original": "Đắp đất đầm chặt K90 (đất mua mới)",
+    "expected": "Đắp đất nền - Đất K90 - Mua mới",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "CIVIL_EARTHWORKS",
+    "original": "Đắp đất đầm chặt K95 (đất mua mới)",
+    "expected": "Đắp đất nền - Đất K95 - Mua mới",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "CIVIL_EARTHWORKS",
+    "original": "Đắp đất đầm chặt K98 (đất mua mới)",
+    "expected": "Đắp đất nền - Đất K98 - Mua mới",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "CIVIL_EARTHWORKS",
+    "original": "Đắp đất đầm chặt K95 (đất tận dụng, đơn giá bao gồm cả vận chuyển nội bộ công trường từ nơi đào đến nơi đắp)",
+    "expected": "Đắp đất nền - Đất K95 - Tận dụng",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "CIVIL_EARTHWORKS",
+    "original": "Đắp đất đầm chặt K98  (đất tận dụng, đơn giá bao gồm cả vận chuyển nội bộ công trường từ nơi đào đến nơi đắp)",
+    "expected": "Đắp đất nền - Đất K98 - Tận dụng",
+    "note": "Tách độ chặt và nguồn gốc"
+  },
+  {
+    "category": "CIVIL_AUX",
+    "original": "Vải địa kỹ thuật",
+    "expected": "Vải địa kỹ thuật - Không dệt - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_AUX",
+    "original": "Nilon tái sinh",
+    "expected": "Nilon - Tái sinh - Lót móng",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_AUX",
+    "original": "Thi công lắp đặt bản quan trắc lún, quan trắc và đánh giá độ cố kết nền đường",
+    "expected": "Bản quan trắc - Quan trắc lún - Trọn bộ",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_TRANSPORT",
+    "original": "Vận chuyển đất, phế thải ra bãi đổ theo quy định (Nhà thầu lo chi phí giấy phép bãi đổ)",
+    "expected": "Vận chuyển - Đất/Phế thải - Ra bãi thải",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_TRANSPORT",
+    "original": "Vận chuyển đất đào... tập kết tại bãi đổ trong phạm vi của dự án",
+    "expected": "Vận chuyển - Đất đào - Nội bộ dự án",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm lớp dưới",
+    "expected": "Móng đường - CPĐD - Lớp dưới",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm lớp trên",
+    "expected": "Móng đường - CPĐD - Lớp trên",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm loại II",
+    "expected": "Móng đường - CPĐD - Lớp dưới",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm loại I",
+    "expected": "Móng đường - CPĐD - Lớp trên",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm loại 2",
+    "expected": "Móng đường - CPĐD - Lớp dưới",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_BASE",
+    "original": "Thi công móng cấp phối đá dăm loại 1",
+    "expected": "Móng đường - CPĐD - Lớp trên",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_SURFACE",
+    "original": "Tưới lớp thấm bám mặt đường bằng nhựa pha dầu, lượng nhựa 1kg/m2",
+    "expected": "Tưới nhựa - Thấm bám - 1kg/m2",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_ROAD_SURFACE",
+    "original": "Rải thảm mặt đường BTN C19 - Chiều dày mặt đường đã lèn ép 7cm",
+    "expected": "Mặt đường - Bê tông nhựa C19 - Dày 7cm",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông mặt đường (bao gồm công tác ván khuôn, khe co giãn... nếu có)",
+    "expected": "Bê tông mặt đường - M250 - Đá 1x2",
+    "note": "Gán mác mặc định nếu thiếu"
+  },
+  {
+    "category": "CIVIL_SIDEWALK",
+    "original": "Bê tông vỉa hè (bao gồm ván khuôn, khe co giãn... nếu có)",
+    "expected": "Bê tông vỉa hè - M200 - Đá 1x2",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 230x260x1000mm vỉa hè (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 230x260x1000",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 230x260x250mm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 230x260x250",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 180x220x1000mm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 180x220x1000",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 180x220x250mm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 180x220x250",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 200x420x1000mm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 200x420x1000",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 200x420x250mm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 200x420x250",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá KT 230x260x1000mm hạ hè (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - 230x260x1000 Hạ hè",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Bó vỉa đá vị trí vuốt nối (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Bó vỉa - Đá tự nhiên - Vuốt nối",
+    "note": "Ưu tiên Bó vỉa > Đá"
+  },
+  {
+    "category": "CIVIL_CURB",
+    "original": "Tấm đan rãnh đá KT 30x50x5cm (cung cấp và lắp dựng, bao gồm cả lớp vữa đệm)",
+    "expected": "Tấm đan rãnh - Đá - 300x500x50",
+    "note": "Đổi cm sang mm"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông lót móng bó vỉa, tấm đan",
+    "expected": "Bê tông lót - M100 - Đá 1x2",
+    "note": "Bê tông lót default là Đá 1x2"
+  },
+  {
+    "category": "CIVIL_FORMWORK",
+    "original": "Ván khuôn bê tông lót móng bó vỉa, tấm đan",
+    "expected": "Ván khuôn - Lót móng - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_CONG",
+    "original": "Cống hộp đôi, cống hộp 3x3",
+    "expected": "Cống hộp - BTCT - Đôi 3x3m",
+    "note": "Chuẩn hóa kích thước, Đôi 3x3m = 2x3x3m"
+  },
+  {
+    "category": "THOAT_NUOC_CUA_XA",
+    "original": "Cửa xả",
+    "expected": "Cửa xả - Bê tông cốt thép - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_GIA_CO",
+    "original": "Cọc tre gia cố công hộp đơn",
+    "expected": "Cọc tre - Gia cố nền - theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_GIA_CO",
+    "original": "Cọc tre gia cố hố ga công hộp đơn",
+    "expected": "Cọc tre - Gia cố nền - theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_GIA_CO",
+    "original": "Cọc tre gia cố công hộp đôi",
+    "expected": "Cọc tre - Gia cố nền - theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_GIA_CO",
+    "original": "Cọc tre gia cố mái đầu cống",
+    "expected": "Cọc tre - Gia cố nền - theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "THOAT_NUOC_GIA_CO",
+    "original": "Cọc tre gia cố bản khẩu độ",
+    "expected": "Cọc tre - Gia cố nền - theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_REBAR",
+    "original": "Sản xuất, lắp dựng cốt thép đáy hố ga cống tròn, đường kính ≤10mm",
+    "expected": "Cốt thép - theo thiết kế - ≤10mm",
+    "note": "Phân loại theo đường kính, không quan tâm cấu kiện"
+  },
+  {
+    "category": "CIVIL_REBAR",
+    "original": "Sản xuất, lắp dựng cốt thép đáy hố ga cống tròn, đường kính ≤18mm",
+    "expected": "Cốt thép - theo thiết kế - ≤18mm",
+    "note": "Phân loại theo đường kính, không quan tâm cấu kiện"
+  },
+  {
+    "category": "CIVIL_REBAR",
+    "original": "Sản xuất, lắp dựng cốt thép nắp hố ga cống tròn, đường kính ≤10mm",
+    "expected": "Cốt thép - Theo thiết kế - ≤10mm",
+    "note": "Phân loại theo đường kính, không quan tâm cấu kiện, chuẩn hóa whitespace"
+  },
+  {
+    "category": "CIVIL_METAL",
+    "original": "Sản xuất, lắp dựng thang thép, hoàn thiện theo thiết kế",
+    "expected": "Thang thép - Thép hình - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_MASONRY",
+    "original": "Xây hố ga bằng gạch đặc, vữa XM M75",
+    "expected": "Xây gạch - Gạch đặc M75 - Hố ga",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_FINISHING",
+    "original": "Trát thành hố ga",
+    "expected": "Trát - Vữa xi măng - Thành hố ga",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_FINISHING",
+    "original": "Láng đáy hố ga",
+    "expected": "Láng - Vữa xi măng - Đáy hố ga",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_FINISHING",
+    "original": "Chèn vữa xi măng vị trí tiếp giáp thành hố ga, cống",
+    "expected": "Chèn vữa - Xi măng - Tiếp giáp cống",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_COVER",
+    "original": "Cung cấp, lắp đặt nắp hố ga gang thăm loại 1 chịu tải trọng D400 lòng đường",
+    "expected": "Nắp hố ga - Gang - D400 Lòng đường",
+    "note": "Tách tải trọng và vị trí"
+  },
+  {
+    "category": "CIVIL_COVER",
+    "original": "Cung cấp, lắp đặt nắp hố ga thăm loại 2 chịu tải trọng B125 vỉa hè",
+    "expected": "Nắp hố ga - Composite/Gang - B125 Vỉa hè",
+    "note": "Tách tải trọng và vị trí"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông tường cánh",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": "Gán mác M250 - Đá 1x2 mặc định cho kết cấu"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông sân cống",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": "Gán mác M250 - Đá 1x2 mặc định cho kết cấu"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông đáy cống",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": "Gán mác M250 - Đá 1x2 mặc định cho kết cấu"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông thân cống",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": "Gán mác M250 - Đá 1x2 mặc định cho kết cấu"
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông dàn treo, trụ đỡ",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_CONCRETE",
+    "original": "Bê tông cửa điều tiết",
+    "expected": "Bê tông - M250 - Đá 1x2",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC",
+    "original": "ỐNG U.PVC PN8 D200",
+    "expected": "Ống nhựa - uPVC - D200 PN8",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC",
+    "original": "ỐNG U.PVC PN8 D160",
+    "expected": "Ống nhựa - uPVC - D160 PN8",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC",
+    "original": "ỐNG U.PVC PN8 D140",
+    "expected": "Ống nhựa - uPVC - D140 PN8",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC_FITTING",
+    "original": "CÚT 45 độ D200",
+    "expected": "Cút 45 độ - uPVC - D200",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC_FITTING",
+    "original": "Y THU D200-D140 (135 độ)",
+    "expected": "Y thu - uPVC - D200/140 135 độ",
+    "note": "Chuẩn hóa kích thước thu"
+  },
+  {
+    "category": "MEP_PIPING_UPVC_FITTING",
+    "original": "CÔN THU D200-D160",
+    "expected": "Côn thu - uPVC - D200/160",
+    "note": ""
+  },
+  {
+    "category": "MEP_PIPING_UPVC_FITTING",
+    "original": "ĐẦU BỊT D200",
+    "expected": "Đầu bịt - uPVC - D200",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_EMBANKMENT",
+    "original": "Đá dăm đệm",
+    "expected": "Đá dăm - Đệm móng - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_EMBANKMENT",
+    "original": "Đa hộc xếp khan",
+    "expected": "Đá hộc - Xếp khan - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_EMBANKMENT",
+    "original": "Xây đá hộc",
+    "expected": "Xây đá - Đá hộc - Vữa M100",
+    "note": "Gán vữa mặc định cho xây đá là M100"
+  },
+  {
+    "category": "CIVIL_FORMWORK",
+    "original": "Ván khuôn bê tông khóa mái bờ kênh mương",
+    "expected": "Ván khuôn - Khóa mái - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_EMBANKMENT",
+    "original": "Tấm bê tông lát mái tường kè. Bao gồm lớp vữa lót, lớp vữa chèn bịt kín khe hở bề mặt… quy cách vật liệu, cấu tạo và chi tiết theo thiết kế",
+    "expected": "Tấm lát mái - Bê tông đúc sẵn - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_LANDSCAPE",
+    "original": "Đất màu trồng cỏ",
+    "expected": "Đất màu - Trồng cây - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_LANDSCAPE",
+    "original": "Trồng cỏ mái bờ kênh (bao gồm cung cấp cỏ, công trồng, chăm sóc và bảo hành)",
+    "expected": "Trồng cỏ - Mái taluy - Bao gồm chăm sóc",
+    "note": ""
+  },
+  {
+    "category": "MEP_VALVE",
+    "original": "Van 1 chiều nối bích DN150",
+    "expected": "Van 1 chiều - Nối bích - DN150",
+    "note": ""
+  },
+  {
+    "category": "MEP_VALVE",
+    "original": "Van cổng nối bích DN150",
+    "expected": "Van cổng - Nối bích - DN150",
+    "note": ""
+  },
+  {
+    "category": "MEP_FITTING",
+    "original": "Côn thu đầu bơm DN80",
+    "expected": "Côn thu - Thép/Gang - DN80 Đầu bơm",
+    "note": ""
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "Khóa chuyển mạch Ampe",
+    "expected": "Khóa chuyển mạch - Ampe - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "ELEC_DEVICE",
+    "original": "Khóa chuyển mạch Vol",
+    "expected": "Khóa chuyển mạch - Vol - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "ELEC_CONDUIT",
+    "original": "Ống mềm D20",
+    "expected": "Ống luồn dây - Ống mềm - D20",
+    "note": ""
+  },
+  {
+    "category": "CIVIL_REBAR",
+    "original": "Thép D12",
+    "expected": "Cốt thép - Theo thiết kế - D12",
+    "note": "thép mác trước, đường kính sau, chuẩn hóa whitespace"
+  },
+  {
+    "category": "CIVIL_MASONRY",
+    "original": "Xây tường chắn",
+    "expected": "Xây tường - Đá/Gạch - Tường chắn",
+    "note": ""
+  },
+  {
+    "category": "ELEC_LIGHTNING_CIVIL",
+    "original": "Móng trụ chống sét",
+    "expected": "Móng trụ - Bê tông cốt thép - Chống sét",
+    "note": "Tiêu đề ngắn"
+  },
+  {
+    "category": "ELEC_LIGHTNING_CIVIL",
+    "original": "Khung móng cột bulong M30, ecu, vòng đệm, vòng định vị",
+    "expected": "Khung móng - Thép - Bulong M30 Trọn bộ",
+    "note": "Gom phụ kiện đi kèm"
+  },
+  {
+    "category": "ELEC_LIGHTNING_TEST",
+    "original": "Chi phí thí nghiệm điện trở nối đất",
+    "expected": "Chi phí - Thí nghiệm - Điện trở nối đất",
+    "note": ""
+  },
+  {
+    "category": "ELV_PIPE",
+    "original": "Ống PVC D110",
+    "expected": "Ống luồn dây - PVC - D110",
+    "note": "Phân biệt ống điện và ống nước qua Category"
+  },
+  {
+    "category": "ELV_PIPE",
+    "original": "Ống thép DN100",
+    "expected": "Ống thép - Đen - DN100",
+    "note": "cần phân biệt ống thép bảo vệ hay ống luồn dây, ống cấp nước, không ghi chú thì mặc đinh là ống thép đen"
+  },
+  {
+    "category": "ELV_CIVIL",
+    "original": "Xây bể cáp, hố ga các loại",
+    "expected": "Xây bể cáp - Gạch - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "ELV_CIVIL",
+    "original": "Bê tông tấm đan 200#",
+    "expected": "Bê tông - M200 - Đá 1x2",
+    "note": "Quy đổi 200# -> M200-Đá 1x2, không quan tâm cấu kiện"
+  },
+  {
+    "category": "ELV_CIVIL",
+    "original": "Bệ tủ phối quang",
+    "expected": "Bệ tủ - Bê tông - Tủ phối quang",
+    "note": ""
+  },
+  {
+    "category": "WATER_PIPE_STEEL",
+    "original": "Ống TTK DN200",
+    "expected": "Ống thép - Thép Tráng kẽm - DN200",
+    "note": "TTK = Thép tráng kẽm"
+  },
+  {
+    "category": "WATER_FITTING",
+    "original": "Khớp nối mềm EE DN200",
+    "expected": "Khớp nối mềm - EE - DN200",
+    "note": "Giữ mã hiệu EE"
+  },
+  {
+    "category": "WATER_FITTING",
+    "original": "Chếch TTK DN200",
+    "expected": "Chếch - Thép Tráng kẽm - DN200",
+    "note": ""
+  },
+  {
+    "category": "WATER_FITTING",
+    "original": "Tê thu HDPE D315",
+    "expected": "Tê thu - HDPE - D315",
+    "note": ""
+  },
+  {
+    "category": "WATER_FITTING",
+    "original": "Đầu nối ren ngoài HDPE D50",
+    "expected": "Đầu nối ren ngoài - HDPE - D50",
+    "note": ""
+  },
+  {
+    "category": "WATER_VALVE",
+    "original": "Cụm van quản lý",
+    "expected": "Cụm van quản lý - Theo thiết kế - Trọn bộ",
+    "note": ""
+  },
+  {
+    "category": "WATER_VALVE",
+    "original": "Van cổng BB DN200",
+    "expected": "Van cổng - Nối bích - DN200",
+    "note": "BB = Body/Body (Bích)"
+  },
+  {
+    "category": "WATER_VALVE",
+    "original": "Khớp nối mềm BE D200",
+    "expected": "Khớp nối mềm - BE - D200",
+    "note": "BE = Flange/Spigot"
+  },
+  {
+    "category": "WATER_VALVE",
+    "original": "Cụm van xả khí",
+    "expected": "Cụm van xả khí - Theo thiết kế - Trọn bộ",
+    "note": ""
+  },
+  {
+    "category": "WATER_DEVICE",
+    "original": "Đồng hồ đo nước DN80",
+    "expected": "Đồng hồ nước - DN80 - Theo thiết kế",
+    "note": ""
+  },
+  {
+    "category": "WATER_DEVICE",
+    "original": "Hộp đồng hồ inox kt350x140x140",
+    "expected": "Hộp đồng hồ - Inox - 350x140x140",
+    "note": ""
+  },
+  {
+    "category": "FIRE_PUMP",
+    "original": "Bơm chữa cháy (bơm điện), loại trục ngang, Q=80l/s, H=56m, P=75kW",
+    "expected": "Bơm chữa cháy - Điện - Q=80l/s H=56m P=75kW",
+    "note": "Gom toàn bộ thông số, không ghi chú khác thì mặc định là bơm điện"
+  },
+  {
+    "category": "FIRE_PUMP",
+    "original": "Bơm bù áp (bơm điện) loại trục đứng, Q=5m3/h,  H=65m, P=7.5kW",
+    "expected": "Bơm bù áp - Điện - Q=5m3/h H=65m P=7.5kW",
+    "note": "không ghi chú khác thì mặc định là bơm điện"
+  },
+  {
+    "category": "FIRE_PUMP",
+    "original": "Bơm chìm thoát nước, Q=10m3/h,  H=20m, P=2.7kW",
+    "expected": "Bơm chìm nước thải - Điện - Q=10m3/h H=20m P=2.7kW",
+    "note": "không ghi chú khác thì mặc định là bơm điện"
+  },
+  {
+    "category": "FIRE_DEVICE",
+    "original": "Bình tích áp 200L, loại bình đứng, áp lực làm việc 16bar",
+    "expected": "Bình tích áp - Đứng - 200L 16bar",
+    "note": ""
+  },
+  {
+    "category": "FIRE_DEVICE",
+    "original": "Lò xo giảm chấn cho bơm chữa cháy",
+    "expected": "Lò xo giảm chấn - Thép/Cao su - Bơm chữa cháy",
+    "note": ""
+  },
+  {
+    "category": "FIRE_PIPE",
+    "original": "Ống thép đen DN250",
+    "expected": "Ống thép - Đen - DN250",
+    "note": ""
+  }
+]

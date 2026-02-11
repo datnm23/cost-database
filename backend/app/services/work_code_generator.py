@@ -97,7 +97,6 @@ class WorkCodeGenerator:
         'kết cấu': 'STRUC',
 
         # Architecture (SEC-03)
-        'tường': 'WALL',
         'gạch': 'BRICK',
         'vữa': 'MORT',
         'trát': 'PLAST',
@@ -116,6 +115,34 @@ class WorkCodeGenerator:
         'điều hòa': 'HVAC',
         'pccc': 'FIRE',
         'cháy': 'FIRE',
+
+        # MEP - Pipe fittings
+        'van': 'VALVE',
+        'côn': 'FITTING',
+        'cút': 'FITTING',
+        'tê ': 'FITTING',
+        'bích': 'FITTING',
+        'khớp nối': 'FITTING',
+
+        # MEP - Electrical
+        'contactor': 'ELEC',
+        'mccb': 'BREAKER',
+        'mcb': 'BREAKER',
+        'đèn báo': 'ELEC',
+        'tủ điện': 'PANEL',
+        'aptomat': 'BREAKER',
+        'cầu chì': 'FUSE',
+        'cầu dao': 'BREAKER',
+
+        # MEP - Pipes
+        'ống': 'PIPE',
+        'hdpe': 'PIPE',
+        'pvc': 'PIPE',
+        'ppr': 'PIPE',
+
+        # MEP - Others
+        'đồng hồ': 'METER',
+        'bơm': 'PUMP',
 
         # Landscape (SEC-05)
         'cảnh quan': 'LAND',
@@ -160,6 +187,30 @@ class WorkCodeGenerator:
         'cây xanh': 'PLANT',
         'hàng rào': 'FENCE',
         'cổng': 'GATE',
+
+        # Pipe fittings
+        'van cổng': 'GATE',
+        'van bướm': 'BFLY',
+        'van bi': 'BALL',
+        'van một chiều': 'CHECK',
+        'côn thu': 'REDU',
+        'cút thép': 'ELBOW',
+        'cút nhựa': 'ELBOW',
+        'tê thép': 'TEE',
+        'tê nhựa': 'TEE',
+        'bích thép': 'FLANG',
+        'bích nhựa': 'FLANG',
+        'khớp nối mềm': 'FLEX',
+        'khớp nối': 'JOINT',
+
+        # Electrical sub
+        'tủ điện': 'PANEL',
+        'cáp điện': 'CABLE',
+        'dây điện': 'WIRE',
+
+        # Pumps
+        'bơm nước': 'WPUMP',
+        'bơm chìm': 'SPUMP',
     }
 
     def __init__(self, db: Session):
@@ -280,13 +331,27 @@ class WorkCodeGenerator:
                 # Also find main category
                 for cat_keyword, cat_code in self.CATEGORY_KEYWORDS.items():
                     if cat_keyword in desc_normalized:
-                        return (cat_code, code)
+                        cat = cat_code
+                        # Validate: SEC-04-xx should not get EARTH/CONC/WALL
+                        if sec_code and sec_code.startswith('SEC-04'):
+                            if cat in ('EARTH', 'CONC', 'WALL', 'FILL', 'GROUND',
+                                       'BRICK', 'PLAST', 'PAINT', 'TILE', 'CEIL',
+                                       'SLAB', 'BEAM', 'COL', 'STRUC'):
+                                cat = 'MEP'
+                        return (cat, code)
                 return ('MISC', code)
 
         # Find main category only
         for keyword, code in self.CATEGORY_KEYWORDS.items():
             if keyword in desc_normalized:
-                return (code, '')
+                cat = code
+                # Validate: SEC-04-xx should not get structural categories
+                if sec_code and sec_code.startswith('SEC-04'):
+                    if cat in ('EARTH', 'CONC', 'WALL', 'FILL', 'GROUND',
+                               'BRICK', 'PLAST', 'PAINT', 'TILE', 'CEIL',
+                               'SLAB', 'BEAM', 'COL', 'STRUC'):
+                        cat = 'MEP'
+                return (cat, '')
 
         # Default based on SEC code
         sec_defaults = {
