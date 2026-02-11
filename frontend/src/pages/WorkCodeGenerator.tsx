@@ -48,7 +48,8 @@ export default function WorkCodeGenerator() {
       description: values.description,
       sec_code: values.sec_code,
       unit: values.unit,
-      include_grade: values.include_grade ?? true,
+      include_grade: values.include_grade ?? false,
+      generate_v4: values.generate_v4 ?? true,
     })
   }
 
@@ -79,7 +80,8 @@ export default function WorkCodeGenerator() {
                 onFinish={handleGenerate}
                 initialValues={{
                   sec_code: 'SEC-02',
-                  include_grade: true,
+                  include_grade: false,
+                  generate_v4: true,
                 }}
               >
                 <Form.Item
@@ -158,7 +160,15 @@ export default function WorkCodeGenerator() {
 
                 <Form.Item
                   name="include_grade"
-                  label="Include Material Grade"
+                  label="Include Material Grade (Legacy)"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+
+                <Form.Item
+                  name="generate_v4"
+                  label="Generate v4.0 Code"
                   valuePropName="checked"
                 >
                   <Switch />
@@ -194,7 +204,7 @@ export default function WorkCodeGenerator() {
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
                   {/* Work Code */}
                   <div>
-                    <Text type="secondary">Generated Work Code:</Text>
+                    <Text type="secondary">Generated Work Code (Legacy):</Text>
                     <div
                       style={{
                         marginTop: 8,
@@ -220,6 +230,38 @@ export default function WorkCodeGenerator() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* v4.0 Code */}
+                  {result.v4_code && (
+                    <div>
+                      <Text type="secondary">v4.0 Code:</Text>
+                      <div
+                        style={{
+                          marginTop: 8,
+                          padding: 16,
+                          background: '#e6f7ff',
+                          borderRadius: 8,
+                          border: '1px solid #91d5ff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Text
+                          strong
+                          style={{ fontSize: 22, fontFamily: 'monospace', color: '#1890ff' }}
+                        >
+                          {result.v4_code}
+                        </Text>
+                        <Button
+                          icon={<CopyOutlined />}
+                          onClick={() => copyToClipboard(result.v4_code!)}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Validation Status */}
                   <Alert
@@ -307,7 +349,31 @@ export default function WorkCodeGenerator() {
         <Divider />
         <Card type="inner" title="Examples">
           <Paragraph>
-            <Text strong>Common Patterns:</Text>
+            <Text strong>v4.0 Format (New):</Text>
+          </Paragraph>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <Tag color="cyan">A.CV.CON.POUR.COL</Tag>
+              <Text type="secondary"> = Đổ bê tông cột (Activity, Civil, Concrete, Pour, Column)</Text>
+            </div>
+            <div>
+              <Tag color="cyan">A.CV.RBR.FABR.FND</Tag>
+              <Text type="secondary"> = Gia công cốt thép móng + spec_grade=CB400 (riêng)</Text>
+            </div>
+            <div>
+              <Tag color="cyan">A.PL.PIP.INST.SUP</Tag>
+              <Text type="secondary"> = Lắp ống cấp nước + spec_material=PPR (riêng)</Text>
+            </div>
+            <div>
+              <Tag color="cyan">M.CV.CON.CONC.GEN</Tag>
+              <Text type="secondary"> = Bê tông thương phẩm (Material)</Text>
+            </div>
+          </Space>
+
+          <Divider />
+
+          <Paragraph>
+            <Text strong>Legacy Format:</Text>
           </Paragraph>
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
@@ -315,20 +381,12 @@ export default function WorkCodeGenerator() {
               <Text type="secondary"> = Đào đất móng (SEC-01, Earthworks, Excavation)</Text>
             </div>
             <div>
-              <Tag color="blue">S02-CONC-M200-0001</Tag>
-              <Text type="secondary"> = Bê tông M200 dầm (SEC-02, Concrete, M200 grade)</Text>
+              <Tag color="blue">S02-CONC-0001</Tag>
+              <Text type="secondary"> = Bê tông dầm (SEC-02, Concrete — grade stored separately)</Text>
             </div>
             <div>
               <Tag color="blue">S03-WALL-BRICK-0001</Tag>
               <Text type="secondary"> = Tường gạch (SEC-03, Wall, Brick)</Text>
-            </div>
-            <div>
-              <Tag color="blue">S04-ELEC-0001</Tag>
-              <Text type="secondary"> = Hệ thống điện (SEC-04, Electrical)</Text>
-            </div>
-            <div>
-              <Tag color="blue">S05-ROAD-0001</Tag>
-              <Text type="secondary"> = Đường nội bộ (SEC-05, Road)</Text>
             </div>
           </Space>
         </Card>

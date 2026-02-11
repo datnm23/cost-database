@@ -6,6 +6,11 @@ Handles normalization of MEP (Mechanical, Electrical, Plumbing) equipment:
 - Pipes (ống HDPE, PVC, PPR)
 - Cables (cáp điện Cu/XLPE/PVC)
 - Lighting (đèn)
+- Valves (van cổng, van bướm, van bi)
+- Pipe fittings (côn thu, cút, tê, bích, khớp nối)
+- Electrical accessories (contactor, aptomat)
+- Instruments (đồng hồ)
+- Pumps (bơm)
 """
 import re
 from typing import Dict, Optional, List
@@ -135,6 +140,199 @@ LIGHTING_PATTERNS = {
 }
 
 
+# Valve patterns
+VALVE_PATTERNS = {
+    'gate': {
+        'pattern': r'[Vv]an\s*cổng\s*D?N?([\d]+)',
+        'template': 'Van cổng - DN{diameter}',
+    },
+    'butterfly': {
+        'pattern': r'[Vv]an\s*bướm\s*D?N?([\d]+)',
+        'template': 'Van bướm - DN{diameter}',
+    },
+    'ball': {
+        'pattern': r'[Vv]an\s*bi\s*D?N?([\d]+)',
+        'template': 'Van bi - DN{diameter}',
+    },
+    'check': {
+        'pattern': r'[Vv]an\s*(?:một\s*chiều|1\s*chiều)\s*D?N?([\d]+)',
+        'template': 'Van một chiều - DN{diameter}',
+    },
+    'generic': {
+        'pattern': r'[Vv]an\s+(?!(?:khuôn|ván))([\w]+)\s*D?N?([\d]+)',
+        'template': 'Van {subtype} - DN{diameter}',
+    },
+}
+
+# Pipe fitting patterns
+FITTING_PATTERNS = {
+    'reducer': {
+        'pattern': r'[Cc]ôn\s*thu\s*(?:(uPVC|PVC|HDPE|PPR|thép)\s*)?D?N?([\d]+)\s*[/xX]\s*D?N?([\d]+)',
+        'template': 'Côn thu - {material} - D{d1}/D{d2}',
+    },
+    'elbow': {
+        'pattern': r'[Cc]út\s*(?:(thép|uPVC|PVC|HDPE|PPR)\s*)?(?:mạ\s*kẽm\s*)?D?N?([\d]+)',
+        'template': 'Cút - {material} - DN{diameter}',
+    },
+    'tee': {
+        'pattern': r'[Tt]ê\s*(?:(thép|uPVC|PVC|HDPE|PPR)\s*)?(?:mạ\s*kẽm\s*)?D?N?([\d]+)',
+        'template': 'Tê - {material} - DN{diameter}',
+    },
+    'flange': {
+        'pattern': r'[Bb]ích\s*(?:(thép|uPVC|PVC|HDPE|PPR)\s*)?(?:mạ\s*kẽm\s*)?D?N?([\d]+)',
+        'template': 'Bích - {material} - DN{diameter}',
+    },
+    'flexible_joint': {
+        'pattern': r'[Kk]hớp\s*nối\s*(?:mềm\s*)?(?:(thép|uPVC|PVC|HDPE|PPR|inox)\s*)?D?N?([\d]+)',
+        'template': 'Khớp nối mềm - {material} - DN{diameter}',
+    },
+    'coupling': {
+        'pattern': r'(?:măng\s*sông|nối\s*ống)\s*(?:(thép|uPVC|PVC|HDPE|PPR)\s*)?D?N?([\d]+)',
+        'template': 'Măng sông - {material} - DN{diameter}',
+    },
+}
+
+# Electrical accessory patterns
+ELECTRICAL_ACCESSORY_PATTERNS = {
+    'contactor': {
+        'pattern': r'[Cc]ontactor\s*(\d+)\s*[Pp]?\s*[-]?\s*(\d+)\s*[Aa]?',
+        'template': 'Contactor - {poles}P - {amps}A',
+    },
+    'contactor_simple': {
+        'pattern': r'[Cc]ontactor\s*(\d+)\s*[Aa]',
+        'template': 'Contactor - {amps}A',
+    },
+    'aptomat_full': {
+        'pattern': r'[Aa]ptomat\s*(\d+)\s*[Pp]\s*[-]?\s*(\d+)\s*[Aa]',
+        'template': 'Aptomat - {poles}P - {amps}A',
+    },
+    'aptomat_simple': {
+        'pattern': r'[Aa]ptomat\s*(\d+)\s*[Aa]',
+        'template': 'Aptomat - {amps}A',
+    },
+    'fuse': {
+        'pattern': r'[Cc]ầu\s*chì\s*(\d+)\s*[Aa]',
+        'template': 'Cầu chì - {amps}A',
+    },
+    'busbar': {
+        'pattern': r'[Tt]hanh\s*cái\s*(?:đồng\s*)?(\d+)\s*[Aa]?',
+        'template': 'Thanh cái đồng - {amps}A',
+    },
+    'indicator_light': {
+        'pattern': r'[Đđ]èn\s*báo\s*(?:pha\s*)?(?:(\w+)\s*)?',
+        'template': 'Đèn báo pha',
+    },
+    'timer': {
+        'pattern': r'[Tt]imer\s*(?:hẹn\s*giờ\s*)?(\d+)\s*[Aa]?',
+        'template': 'Timer hẹn giờ - {amps}A',
+    },
+    'relay': {
+        'pattern': r'[Rr](?:ơ\s*le|elay)\s*(?:trung\s*gian\s*)?(\d+)\s*[Aa]?',
+        'template': 'Rơ le trung gian - {amps}A',
+    },
+}
+
+# Instrument patterns
+INSTRUMENT_PATTERNS = {
+    'water_meter': {
+        'pattern': r'[Đđ]ồng\s*hồ\s*(?:nước|đo\s*nước)\s*D?N?([\d]+)',
+        'template': 'Đồng hồ nước - DN{diameter}',
+    },
+    'pressure_gauge': {
+        'pattern': r'[Đđ]ồng\s*hồ\s*(?:đo\s*)?áp\s*(?:suất\s*)?(?:(\d+)\s*bar)?',
+        'template': 'Đồng hồ đo áp suất',
+    },
+    'flow_meter': {
+        'pattern': r'[Đđ]ồng\s*hồ\s*(?:đo\s*)?lưu\s*lượng\s*D?N?([\d]+)?',
+        'template': 'Đồng hồ lưu lượng - DN{diameter}',
+    },
+    'thermometer': {
+        'pattern': r'[Nn]hiệt\s*kế\s*(?:(\d+)\s*°?[Cc])?',
+        'template': 'Nhiệt kế',
+    },
+}
+
+# Pump patterns
+PUMP_PATTERNS = {
+    'submersible': {
+        'pattern': r'[Bb]ơm\s*chìm\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|KW))?',
+        'template': 'Bơm chìm - {power}',
+    },
+    'centrifugal': {
+        'pattern': r'[Bb]ơm\s*ly\s*tâm\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|KW))?',
+        'template': 'Bơm ly tâm - {power}',
+    },
+    'booster': {
+        'pattern': r'[Bb]ơm\s*(?:tăng\s*áp|bù\s*áp)\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|KW))?',
+        'template': 'Bơm tăng áp - {power}',
+    },
+    'fire': {
+        'pattern': r'[Bb]ơm\s*(?:chữa\s*cháy|pccc|PCCC)\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|KW))?',
+        'template': 'Bơm chữa cháy - {power}',
+    },
+    'generic': {
+        'pattern': r'[Bb]ơm\s+(?!chìm|ly|tăng|bù|chữa|pccc)([\w]+)\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|KW))?',
+        'template': 'Bơm {subtype} - {power}',
+    },
+}
+
+# HVAC patterns
+HVAC_PATTERNS = {
+    'ahu': {
+        'pattern': r'(?:AHU|[Aa]ir\s*[Hh]andling)\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|TR|ton))?',
+        'template': 'AHU - {capacity}',
+    },
+    'fcu': {
+        'pattern': r'(?:FCU|[Ff]an\s*[Cc]oil)\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|TR|BTU))?',
+        'template': 'FCU - {capacity}',
+    },
+    'ac': {
+        'pattern': r'[Đđ]iều\s*hòa\s*(?:không\s*khí\s*)?(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|BTU))?',
+        'template': 'Điều hòa - {capacity}',
+    },
+    'indoor_unit': {
+        'pattern': r'[Dd]àn\s*lạnh\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|BTU))?',
+        'template': 'Dàn lạnh - {capacity}',
+    },
+    'outdoor_unit': {
+        'pattern': r'[Dd]àn\s*nóng\s*(?:(\d+(?:\.\d+)?)\s*(?:HP|kW|BTU))?',
+        'template': 'Dàn nóng - {capacity}',
+    },
+    'duct': {
+        'pattern': r'[Ốố]ng\s*gió\s*(?:tôn\s*)?(?:(\d+)\s*[xX]\s*(\d+))?',
+        'template': 'Ống gió - {dims}',
+    },
+    'fan': {
+        'pattern': r'[Qq]uạt\s*(?:thông\s*gió|hút|thổi)\s*(?:(\d+(?:\.\d+)?)\s*(?:m3/h|CFM|W))?',
+        'template': 'Quạt thông gió - {capacity}',
+    },
+}
+
+# Fire protection patterns
+FIRE_PATTERNS = {
+    'sprinkler': {
+        'pattern': r'[Ss]prinkler\s*(?:D?N?([\d]+))?',
+        'template': 'Sprinkler - DN{diameter}',
+    },
+    'fire_alarm': {
+        'pattern': r'(?:[Đđ]ầu\s*)?[Bb]áo\s*cháy\s*(?:khói|nhiệt)?',
+        'template': 'Đầu báo cháy',
+    },
+    'fire_extinguisher': {
+        'pattern': r'[Bb]ình\s*chữa\s*cháy\s*(?:(\d+)\s*(?:kg|l))?',
+        'template': 'Bình chữa cháy - {capacity}',
+    },
+    'fire_hose': {
+        'pattern': r'(?:[Cc]uộn\s*)?[Vv]òi\s*(?:chữa\s*cháy|cứu\s*hỏa)\s*D?N?([\d]+)?',
+        'template': 'Vòi chữa cháy - DN{diameter}',
+    },
+    'fire_cabinet': {
+        'pattern': r'[Tt]ủ\s*(?:chữa\s*cháy|cứu\s*hỏa|pccc|PCCC)',
+        'template': 'Tủ chữa cháy',
+    },
+}
+
+
 class MEPEquipmentNormalizer:
     """Normalizer specialized for MEP equipment and materials"""
 
@@ -151,7 +349,8 @@ class MEPEquipmentNormalizer:
             'mccb', 'mcb', 'rccb', 'rcbo', 'elcb', 'công tơ',
             'cáp điện', 'cáp cu', 'cáp đồng', 'dây điện', 'xlpe',
             'đèn chiếu sáng', 'đèn tín hiệu', 'đèn led', 'đèn đường',
-            'cầu chì', 'thanh cái', 'aptomat',
+            'cầu chì', 'thanh cái', 'aptomat', 'contactor', 'đèn báo',
+            'rơ le', 'relay', 'timer',
             'ống luồn', 'ống gen',
         ]
 
@@ -161,12 +360,54 @@ class MEPEquipmentNormalizer:
             'ống ttk', 'ống nhựa', 'ống nước', 'ống thoát',
         ]
 
+        # Valve keywords (careful: "van" must not match "ván khuôn")
+        valve_keywords = [
+            'van cổng', 'van bướm', 'van bi', 'van một chiều',
+            'van 1 chiều', 'van giảm áp', 'van xả', 'van điều khiển',
+        ]
+
+        # Pipe fitting keywords
+        fitting_keywords = [
+            'côn thu', 'cút thép', 'cút pvc', 'cút hdpe', 'cút upvc',
+            'tê thép', 'tê pvc', 'tê hdpe',
+            'bích thép', 'bích pvc', 'bích hdpe',
+            'khớp nối', 'măng sông', 'nối ống',
+        ]
+
+        # Instrument keywords
+        instrument_keywords = [
+            'đồng hồ nước', 'đồng hồ áp', 'đồng hồ đo', 'đồng hồ lưu lượng',
+            'nhiệt kế', 'áp kế',
+        ]
+
+        # Pump keywords
+        pump_keywords = [
+            'bơm chìm', 'bơm ly tâm', 'bơm tăng áp', 'bơm bù áp',
+            'bơm chữa cháy', 'bơm pccc', 'bơm nước',
+        ]
+
+        # HVAC keywords
+        hvac_keywords = [
+            'điều hòa', 'ahu', 'fcu', 'dàn lạnh', 'dàn nóng',
+            'ống gió', 'quạt thông gió', 'quạt hút',
+        ]
+
+        # Fire protection keywords
+        fire_keywords = [
+            'sprinkler', 'báo cháy', 'bình chữa cháy', 'vòi chữa cháy',
+            'tủ chữa cháy', 'tủ pccc', 'đầu báo',
+        ]
+
         # Cable pattern check
         cable_pattern = r'[Cc]áp.*?(\d+)[xX](\d+)'
         if re.search(cable_pattern, text):
             return True
 
-        all_keywords = elec_keywords + pipe_keywords
+        all_keywords = (
+            elec_keywords + pipe_keywords + valve_keywords +
+            fitting_keywords + instrument_keywords + pump_keywords +
+            hvac_keywords + fire_keywords
+        )
         return any(kw in text_lower for kw in all_keywords)
 
     def is_material_only(self, text: str) -> bool:
@@ -200,6 +441,7 @@ class MEPEquipmentNormalizer:
         """
         Normalize MEP equipment description
         IMPROVED: Preserves important technical specs like Cu/XLPE/PVC
+        Standard Naming Strategy: [TÊN ĐỐI TƯỢNG] - [CHẤT LIỆU/BIẾN THỂ] - [THÔNG SỐ KỸ THUẬT]
         """
         text_lower = description.lower().strip()
         is_material = self.is_material_only(description)
@@ -216,17 +458,59 @@ class MEPEquipmentNormalizer:
             if match:
                 return self._normalize_breaker(description, breaker_type, match, config, is_material)
 
+        # Try electrical accessory patterns (contactor, aptomat, etc.)
+        for acc_type, config in ELECTRICAL_ACCESSORY_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_electrical_accessory(description, acc_type, match, config, is_material)
+
+        # Try valve patterns (before pipe patterns - "van" check is more specific)
+        for valve_type, config in VALVE_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_valve(description, valve_type, match, config, is_material)
+
+        # Try pipe fitting patterns (before pipe patterns - "côn thu", "cút" are more specific)
+        for fitting_type, config in FITTING_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_fitting(description, fitting_type, match, config, is_material)
+
         # Try pipe patterns
         for pipe_type, config in PIPE_PATTERNS.items():
             match = re.search(config['pattern'], description, re.IGNORECASE)
             if match:
                 return self._normalize_pipe(description, pipe_type, match, config, is_material)
 
+        # Try HVAC patterns
+        for hvac_type, config in HVAC_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_hvac(description, hvac_type, match, config, is_material)
+
+        # Try pump patterns
+        for pump_type, config in PUMP_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_pump(description, pump_type, match, config, is_material)
+
+        # Try instrument patterns
+        for inst_type, config in INSTRUMENT_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_instrument(description, inst_type, match, config, is_material)
+
         # Try lighting patterns
         for light_type, config in LIGHTING_PATTERNS.items():
             match = re.search(config['pattern'], description, re.IGNORECASE)
             if match:
                 return self._normalize_lighting(description, light_type, match, config, is_material)
+
+        # Try fire protection patterns
+        for fire_type, config in FIRE_PATTERNS.items():
+            match = re.search(config['pattern'], description, re.IGNORECASE)
+            if match:
+                return self._normalize_fire(description, fire_type, match, config, is_material)
 
         # Try panel keywords
         for panel_type, config in PANEL_PATTERNS.items():
@@ -328,7 +612,7 @@ class MEPEquipmentNormalizer:
         elif breaker_type == 'mcb':
             poles = match.group(2)
             amps = match.group(3)
-            ka = match.group(4) if match.lastindex >= 4 else None
+            ka = match.group(4) if (match.lastindex or 0) >= 4 else None
             specs = {'poles': poles, 'amps': amps, 'ka': ka}
             # Standard Naming Strategy: kA should be part of the 3rd component, not a 4th component
             ka_str = f" {ka}kA" if ka else ""
@@ -338,7 +622,7 @@ class MEPEquipmentNormalizer:
             breaker = match.group(1)
             poles = match.group(2)
             amps = match.group(3)
-            ka = match.group(4) if match.lastindex >= 4 else None
+            ka = match.group(4) if (match.lastindex or 0) >= 4 else None
             specs = {'type': breaker, 'poles': poles, 'amps': amps, 'ka': ka}
             # Standard Naming Strategy: kA should be part of the 3rd component, not a 4th component
             ka_str = f" {ka}kA" if ka else ""
@@ -368,13 +652,13 @@ class MEPEquipmentNormalizer:
         specs = {}
 
         # Extract diameter
-        diameter = match.group(1) if match.lastindex >= 1 else None
+        diameter = match.group(1) if (match.lastindex or 0) >= 1 else None
         if diameter:
             specs['diameter'] = diameter
 
         # Extract pressure (for HDPE, PVC, PPR)
         pressure = None
-        if match.lastindex >= 2 and match.group(2):
+        if (match.lastindex or 0) >= 2 and match.group(2):
             pressure = match.group(2).upper()
             specs['pressure'] = pressure
 
@@ -426,7 +710,7 @@ class MEPEquipmentNormalizer:
         if light_type == 'signal_light':
             normalized = "Đèn tín hiệu báo pha"
         else:
-            wattage = match.group(1) if match.lastindex >= 1 else None
+            wattage = match.group(1) if (match.lastindex or 0) >= 1 else None
             if wattage:
                 specs['wattage'] = wattage
 
@@ -485,6 +769,383 @@ class MEPEquipmentNormalizer:
             equipment_type=f'panel_{panel_type}',
             specs=specs,
             confidence=0.8,
+            is_material_only=is_material
+        )
+
+    def _normalize_valve(
+        self,
+        description: str,
+        valve_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize valve description: Van cổng - DN80"""
+        specs = {}
+
+        if valve_type == 'generic':
+            subtype = match.group(1)
+            diameter = match.group(2)
+            specs = {'subtype': subtype, 'diameter': diameter}
+            normalized = f"Van {subtype} - DN{diameter}"
+        else:
+            diameter = match.group(1) if (match.lastindex or 0) >= 1 else None
+            if diameter:
+                specs['diameter'] = diameter
+
+            valve_name_map = {
+                'gate': 'Van cổng',
+                'butterfly': 'Van bướm',
+                'ball': 'Van bi',
+                'check': 'Van một chiều',
+            }
+            name = valve_name_map.get(valve_type, f'Van {valve_type}')
+            normalized = f"{name} - DN{diameter}" if diameter else name
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'valve_{valve_type}',
+            specs=specs,
+            confidence=0.9,
+            is_material_only=is_material
+        )
+
+    def _normalize_fitting(
+        self,
+        description: str,
+        fitting_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize pipe fitting: Côn thu - uPVC - D110/D60"""
+        specs = {}
+
+        if fitting_type == 'reducer':
+            material = match.group(1) or ''
+            d1 = match.group(2)
+            d2 = match.group(3)
+            specs = {'material': material, 'd1': d1, 'd2': d2}
+            parts = ['Côn thu']
+            if material:
+                parts.append(material)
+            parts.append(f'D{d1}/D{d2}')
+            normalized = ' - '.join(parts)
+
+        elif fitting_type in ('elbow', 'tee', 'flange'):
+            material = match.group(1) or ''
+            diameter = match.group(2) if (match.lastindex or 0) >= 2 else None
+            specs = {'material': material, 'diameter': diameter}
+
+            fitting_name_map = {
+                'elbow': 'Cút',
+                'tee': 'Tê',
+                'flange': 'Bích',
+            }
+            name = fitting_name_map[fitting_type]
+
+            # Check for "mạ kẽm" in original description
+            if 'mạ kẽm' in description.lower():
+                material = (material + ' mạ kẽm').strip() if material else 'thép mạ kẽm'
+
+            parts = [name]
+            if material:
+                parts.append(material)
+            if diameter:
+                parts.append(f'DN{diameter}')
+            normalized = ' - '.join(parts)
+
+        elif fitting_type == 'flexible_joint':
+            material = match.group(1) or ''
+            diameter = match.group(2) if (match.lastindex or 0) >= 2 else None
+            specs = {'material': material, 'diameter': diameter}
+
+            parts = ['Khớp nối mềm']
+            if material:
+                parts.append(material)
+            if diameter:
+                parts.append(f'DN{diameter}')
+            normalized = ' - '.join(parts)
+
+        elif fitting_type == 'coupling':
+            material = match.group(1) or ''
+            diameter = match.group(2) if (match.lastindex or 0) >= 2 else None
+            specs = {'material': material, 'diameter': diameter}
+
+            parts = ['Măng sông']
+            if material:
+                parts.append(material)
+            if diameter:
+                parts.append(f'DN{diameter}')
+            normalized = ' - '.join(parts)
+
+        else:
+            normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'fitting_{fitting_type}',
+            specs=specs,
+            confidence=0.9,
+            is_material_only=is_material
+        )
+
+    def _normalize_electrical_accessory(
+        self,
+        description: str,
+        acc_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize electrical accessory: Contactor - 3P - 12A, Aptomat - 3P - 32A"""
+        specs = {}
+
+        if acc_type == 'contactor':
+            poles = match.group(1)
+            amps = match.group(2)
+            specs = {'poles': poles, 'amps': amps}
+            normalized = f"Contactor - {poles}P - {amps}A"
+
+        elif acc_type == 'contactor_simple':
+            amps = match.group(1)
+            specs = {'amps': amps}
+            normalized = f"Contactor - {amps}A"
+
+        elif acc_type == 'aptomat_full':
+            poles = match.group(1)
+            amps = match.group(2)
+            specs = {'poles': poles, 'amps': amps}
+            normalized = f"Aptomat - {poles}P - {amps}A"
+
+        elif acc_type == 'aptomat_simple':
+            amps = match.group(1)
+            specs = {'amps': amps}
+            normalized = f"Aptomat - {amps}A"
+
+        elif acc_type == 'fuse':
+            amps = match.group(1)
+            specs = {'amps': amps}
+            normalized = f"Cầu chì - {amps}A"
+
+        elif acc_type == 'busbar':
+            amps = match.group(1)
+            specs = {'amps': amps}
+            normalized = f"Thanh cái đồng - {amps}A"
+
+        elif acc_type == 'indicator_light':
+            normalized = "Đèn báo pha"
+
+        elif acc_type == 'timer':
+            amps = match.group(1) if (match.lastindex or 0) >= 1 else None
+            specs = {'amps': amps}
+            normalized = f"Timer hẹn giờ - {amps}A" if amps else "Timer hẹn giờ"
+
+        elif acc_type == 'relay':
+            amps = match.group(1) if (match.lastindex or 0) >= 1 else None
+            specs = {'amps': amps}
+            normalized = f"Rơ le trung gian - {amps}A" if amps else "Rơ le trung gian"
+
+        else:
+            normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'electrical_{acc_type}',
+            specs=specs,
+            confidence=0.9,
+            is_material_only=is_material
+        )
+
+    def _normalize_instrument(
+        self,
+        description: str,
+        inst_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize instrument: Đồng hồ nước - DN25"""
+        specs = {}
+
+        if inst_type == 'water_meter':
+            diameter = match.group(1)
+            specs = {'diameter': diameter}
+            normalized = f"Đồng hồ nước - DN{diameter}"
+
+        elif inst_type == 'pressure_gauge':
+            bar = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            specs = {'range': f'{bar}bar'} if bar else {}
+            normalized = f"Đồng hồ đo áp suất - {bar}bar" if bar else "Đồng hồ đo áp suất"
+
+        elif inst_type == 'flow_meter':
+            diameter = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            specs = {'diameter': diameter} if diameter else {}
+            normalized = f"Đồng hồ lưu lượng - DN{diameter}" if diameter else "Đồng hồ lưu lượng"
+
+        elif inst_type == 'thermometer':
+            normalized = "Nhiệt kế"
+
+        else:
+            normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'instrument_{inst_type}',
+            specs=specs,
+            confidence=0.85,
+            is_material_only=is_material
+        )
+
+    def _normalize_pump(
+        self,
+        description: str,
+        pump_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize pump: Bơm chìm - 2HP"""
+        specs = {}
+
+        # Extract power spec from the original description
+        power_match = re.search(r'(\d+(?:\.\d+)?)\s*(HP|kW|KW)', description, re.IGNORECASE)
+        power_str = f"{power_match.group(1)}{power_match.group(2).upper()}" if power_match else None
+        if power_str:
+            # Normalize kW casing
+            power_str = power_str.replace('KW', 'kW')
+            specs['power'] = power_str
+
+        pump_name_map = {
+            'submersible': 'Bơm chìm',
+            'centrifugal': 'Bơm ly tâm',
+            'booster': 'Bơm tăng áp',
+            'fire': 'Bơm chữa cháy',
+        }
+
+        if pump_type == 'generic':
+            subtype = match.group(1)
+            name = f"Bơm {subtype}"
+        else:
+            name = pump_name_map.get(pump_type, f'Bơm {pump_type}')
+
+        normalized = f"{name} - {power_str}" if power_str else name
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'pump_{pump_type}',
+            specs=specs,
+            confidence=0.85,
+            is_material_only=is_material
+        )
+
+    def _normalize_hvac(
+        self,
+        description: str,
+        hvac_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize HVAC equipment: Điều hòa - 12000BTU"""
+        specs = {}
+
+        # Extract capacity from original description
+        cap_match = re.search(r'(\d+(?:\.\d+)?)\s*(HP|kW|KW|BTU|TR|ton)', description, re.IGNORECASE)
+        cap_str = f"{cap_match.group(1)}{cap_match.group(2).upper()}" if cap_match else None
+        if cap_str:
+            cap_str = cap_str.replace('KW', 'kW')
+            specs['capacity'] = cap_str
+
+        hvac_name_map = {
+            'ahu': 'AHU',
+            'fcu': 'FCU',
+            'ac': 'Điều hòa',
+            'indoor_unit': 'Dàn lạnh',
+            'outdoor_unit': 'Dàn nóng',
+            'fan': 'Quạt thông gió',
+        }
+
+        if hvac_type == 'duct':
+            # Duct has dimensions WxH
+            w = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            h = match.group(2) if (match.lastindex or 0) >= 2 and match.group(2) else None
+            if w and h:
+                specs = {'width': w, 'height': h}
+                normalized = f"Ống gió - {w}x{h}"
+            else:
+                normalized = "Ống gió"
+        else:
+            name = hvac_name_map.get(hvac_type, hvac_type)
+            normalized = f"{name} - {cap_str}" if cap_str else name
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'hvac_{hvac_type}',
+            specs=specs,
+            confidence=0.85,
+            is_material_only=is_material
+        )
+
+    def _normalize_fire(
+        self,
+        description: str,
+        fire_type: str,
+        match: re.Match,
+        config: dict,
+        is_material: bool
+    ) -> MEPEquipmentResult:
+        """Normalize fire protection equipment: Sprinkler - DN15"""
+        specs = {}
+
+        if fire_type == 'sprinkler':
+            diameter = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            if diameter:
+                specs['diameter'] = diameter
+            normalized = f"Sprinkler - DN{diameter}" if diameter else "Sprinkler"
+
+        elif fire_type == 'fire_alarm':
+            # Check if khói or nhiệt
+            if 'khói' in description.lower():
+                normalized = "Đầu báo cháy khói"
+            elif 'nhiệt' in description.lower():
+                normalized = "Đầu báo cháy nhiệt"
+            else:
+                normalized = "Đầu báo cháy"
+
+        elif fire_type == 'fire_extinguisher':
+            capacity = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            unit_match = re.search(r'(\d+)\s*(kg|l)', description, re.IGNORECASE)
+            if unit_match:
+                specs = {'capacity': unit_match.group(1), 'unit': unit_match.group(2)}
+                normalized = f"Bình chữa cháy - {unit_match.group(1)}{unit_match.group(2)}"
+            else:
+                normalized = "Bình chữa cháy"
+
+        elif fire_type == 'fire_hose':
+            diameter = match.group(1) if (match.lastindex or 0) >= 1 and match.group(1) else None
+            if diameter:
+                specs['diameter'] = diameter
+            normalized = f"Vòi chữa cháy - DN{diameter}" if diameter else "Vòi chữa cháy"
+
+        elif fire_type == 'fire_cabinet':
+            normalized = "Tủ chữa cháy"
+
+        else:
+            normalized = description
+
+        return MEPEquipmentResult(
+            original=description,
+            normalized=normalized,
+            equipment_type=f'fire_{fire_type}',
+            specs=specs,
+            confidence=0.85,
             is_material_only=is_material
         )
 

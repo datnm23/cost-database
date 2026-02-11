@@ -18,6 +18,26 @@ export interface MasterItem {
   occurrence_count: number
   source_files: string | null
   is_verified: boolean
+  // Spec lifecycle fields
+  spec_status: 'draft' | 'detailed' | 'final'
+  spec_source: 'default' | 'boq' | 'drawing' | 'as_built'
+  spec_confidence: number
+  spec_completeness: number
+  spec_category: string | null
+  spec_material: string | null
+  spec_grade: string | null
+  spec_dimension: string | null
+  // v4.0 code
+  sec_code_v4: string | null
+  instance_code: string | null
+  item_table_type: 'A' | 'M' | 'L' | 'E'
+  work_code_legacy: string | null
+  // v4.0 attributes (stored separately from code)
+  discipline: string | null
+  location: string | null
+  material_type: string | null
+  worker_grade: string | null
+  equip_type: string | null
   created_at: string
   updated_at: string
 }
@@ -35,10 +55,12 @@ export interface WorkCodeGenerateRequest {
   sec_code: string
   unit?: string
   include_grade?: boolean
+  generate_v4?: boolean
 }
 
 export interface WorkCodeGenerateResponse {
   work_code: string
+  v4_code: string | null
   description: string
   sec_code: string
   material_grade: string | null
@@ -125,6 +147,7 @@ export const masterItemsService = {
     sec_code?: string
     search?: string
     verified_only?: boolean
+    item_table_type?: string
   }): Promise<MasterItem[]> => {
     const response = await api.get('/master-items/', { params })
     return response.data
@@ -289,6 +312,69 @@ export const masterItemsService = {
     const response = await api.get(
       `/master-items/${masterId}/price-history/regions`
     )
+    return response.data
+  },
+
+  /**
+   * Update spec field with lifecycle tracking
+   */
+  updateSpec: async (
+    masterId: number,
+    data: {
+      field: string
+      value: string
+      source?: string
+      notes?: string
+    }
+  ): Promise<MasterItem> => {
+    const response = await api.put(`/master-items/${masterId}/specs`, data)
+    return response.data
+  },
+
+  /**
+   * Promote spec status (draft → detailed → final)
+   */
+  promoteSpec: async (
+    masterId: number,
+    targetStatus: string
+  ): Promise<MasterItem> => {
+    const response = await api.post(`/master-items/${masterId}/promote-spec`, {
+      target_status: targetStatus,
+    })
+    return response.data
+  },
+
+  /**
+   * Get spec change history
+   */
+  getSpecHistory: async (
+    masterId: number,
+    limit: number = 50
+  ): Promise<Array<{
+    log_id: number
+    field_name: string
+    old_value: string | null
+    new_value: string | null
+    change_source: string
+    changed_at: string
+    notes: string | null
+  }>> => {
+    const response = await api.get(`/master-items/${masterId}/spec-history`, {
+      params: { limit },
+    })
+    return response.data
+  },
+
+  /**
+   * Get items with incomplete specs
+   */
+  getIncompleteSpecs: async (
+    threshold: number = 0.75,
+    limit: number = 100
+  ): Promise<MasterItem[]> => {
+    const response = await api.get('/master-items/incomplete-specs', {
+      params: { threshold, limit },
+    })
     return response.data
   },
 }

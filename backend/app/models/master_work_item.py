@@ -2,7 +2,7 @@
 Master Work Items Table
 Luu tru cong tac chuan da duoc lam sach, chuan hoa va phan loai
 """
-from sqlalchemy import Column, Integer, String, Numeric, Text, DateTime, Boolean, Index, LargeBinary
+from sqlalchemy import Column, Integer, String, Numeric, Text, DateTime, Boolean, Index, LargeBinary, Float, Enum, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -59,6 +59,43 @@ class MasterWorkItem(Base):
     embedding_vector = Column(LargeBinary, nullable=True, comment='Pre-computed SBERT embedding (768 dims)')
     embedding_version = Column(String(50), nullable=True, comment='Embedding model version')
 
+    # Spec Lifecycle
+    spec_status = Column(
+        Enum('draft', 'detailed', 'final', name='spec_status_enum'),
+        default='draft',
+        nullable=False,
+        comment='Spec lifecycle stage',
+    )
+    spec_source = Column(
+        Enum('default', 'boq', 'drawing', 'as_built', name='spec_source_enum'),
+        default='default',
+        nullable=False,
+        comment='Where the spec data came from',
+    )
+    spec_confidence = Column(Float, default=0.0, nullable=False, comment='Confidence 0.0-1.0 based on source')
+    spec_completeness = Column(Float, default=0.0, nullable=False, comment='Weighted completeness 0.0-1.0')
+
+    # v4.0 Code (reference code — non-unique, FK to sec_codes_v4)
+    sec_code_v4 = Column(String(15), ForeignKey('sec_codes_v4.code'), nullable=True, index=True, comment='v4.0 ref code e.g. A.CONC.STR')
+    # Instance code (unique identifier per master item)
+    instance_code = Column(String(20), unique=True, nullable=True, index=True, comment='Unique instance e.g. A.CONC.STR-001')
+    item_table_type = Column(
+        Enum('A', 'M', 'L', 'E', name='item_table_type_enum'),
+        default='A',
+        nullable=False,
+        comment='Which v4.0 table: Activity/Material/Labour/Equipment',
+    )
+
+    # v4.0 Attributes (stored separately, not in the code)
+    discipline = Column(String(5), nullable=True, comment='Discipline: CV, AR, EL, PL, ME, FP')
+    location = Column(String(5), nullable=True, comment='Location (Activity): COL, BEM, SLB, FND, WAL')
+    material_type = Column(String(10), nullable=True, comment='Material type (Material): RDMX, HDPE, XLPE')
+    worker_grade = Column(String(10), nullable=True, comment='Worker grade (Labour): THO3, THO4, OPER')
+    equip_type = Column(String(10), nullable=True, comment='Equipment type (Equipment): PUMP, EXCV, CRAN')
+
+    # Legacy preservation
+    work_code_legacy = Column(String(50), nullable=True, comment='Original S-prefix work code before v4.0 migration')
+
     # Status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)  # Da duoc verify boi user
@@ -71,6 +108,7 @@ class MasterWorkItem(Base):
 
     # Relationships
     synonyms = relationship("MasterSynonym", back_populates="master_item", cascade="all, delete-orphan")
+    ref_code_rel = relationship("SECCodeV4", back_populates="master_items", foreign_keys=[sec_code_v4])
 
     # Indexes for search and filter
     __table_args__ = (
@@ -81,7 +119,31 @@ class MasterWorkItem(Base):
         Index('idx_master_spec_category', 'spec_category'),
         Index('idx_master_spec_material', 'spec_material'),
         Index('idx_master_spec_grade', 'spec_grade'),
+        Index('idx_master_spec_status', 'spec_status'),
+        Index('idx_master_table_type', 'item_table_type'),
+        Index('idx_master_discipline', 'discipline'),
     )
+
+    def compute_spec_completeness(self) -> float:
+        """
+        Compute weighted spec completeness score (0.0 - 1.0).
+
+        Weights:
+          - spec_category:  25%
+          - spec_material:  25%
+          - spec_grade:     30%
+          - spec_dimension: 20%
+        """
+        score = 0.0
+        if self.spec_category:
+            score += 0.25
+        if self.spec_material:
+            score += 0.25
+        if self.spec_grade:
+            score += 0.30
+        if self.spec_dimension:
+            score += 0.20
+        return round(score, 2)
 
     def generate_matching_key(self) -> str:
         """

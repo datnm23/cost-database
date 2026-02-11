@@ -19,6 +19,7 @@ import {
   Popconfirm,
   Empty,
   Badge,
+  Progress,
 } from 'antd'
 import {
   SearchOutlined,
@@ -47,6 +48,7 @@ export default function MasterItems() {
   const [search, setSearch] = useState('')
   const [secCodeFilter, setSecCodeFilter] = useState<string | undefined>()
   const [verifiedOnly, setVerifiedOnly] = useState(false)
+  const [tableTypeFilter, setTableTypeFilter] = useState<string | undefined>()
   const [pagination, setPagination] = useState({ skip: 0, limit: 50 })
 
   // Price drill-down modal state
@@ -79,6 +81,7 @@ export default function MasterItems() {
       search,
       secCodeFilter,
       verifiedOnly,
+      tableTypeFilter,
       pagination,
     ],
     queryFn: () =>
@@ -86,6 +89,7 @@ export default function MasterItems() {
         search,
         sec_code: secCodeFilter,
         verified_only: verifiedOnly,
+        item_table_type: tableTypeFilter,
         skip: pagination.skip,
         limit: pagination.limit,
       }),
@@ -164,15 +168,42 @@ export default function MasterItems() {
 
   const columns: ColumnsType<MasterItem> = [
     {
-      title: 'Work Code',
-      dataIndex: 'work_code',
-      key: 'work_code',
-      width: 200,
+      title: 'Type',
+      dataIndex: 'item_table_type',
+      key: 'item_table_type',
+      width: 60,
       fixed: 'left',
-      render: (code: string) => (
-        <Text strong copyable>
-          {code}
-        </Text>
+      align: 'center',
+      render: (type: string) => {
+        const colorMap: Record<string, string> = {
+          A: 'blue',
+          M: 'green',
+          L: 'orange',
+          E: 'purple',
+        }
+        return <Tag color={colorMap[type] || 'default'}>{type}</Tag>
+      },
+    },
+    {
+      title: 'Discipline',
+      dataIndex: 'discipline',
+      key: 'discipline',
+      width: 80,
+      align: 'center',
+      render: (disc: string) => disc ? <Tag>{disc}</Tag> : null,
+    },
+    {
+      title: 'Code',
+      dataIndex: 'instance_code',
+      key: 'instance_code',
+      width: 220,
+      fixed: 'left',
+      render: (_: string, record: MasterItem) => (
+        <Tooltip title={record.sec_code_v4 ? `Ref: ${record.sec_code_v4}` : record.work_code}>
+          <Text strong copyable>
+            {record.instance_code || record.sec_code_v4 || record.work_code}
+          </Text>
+        </Tooltip>
       ),
     },
     {
@@ -224,6 +255,35 @@ export default function MasterItems() {
       width: 120,
       align: 'center',
       render: (count: number) => <Tag color="green">{count}</Tag>,
+    },
+    {
+      title: 'Spec Status',
+      dataIndex: 'spec_status',
+      key: 'spec_status',
+      width: 110,
+      align: 'center',
+      render: (status: string) => {
+        const colorMap: Record<string, string> = {
+          draft: 'default',
+          detailed: 'processing',
+          final: 'success',
+        }
+        return <Badge status={colorMap[status] as any || 'default'} text={status || 'draft'} />
+      },
+    },
+    {
+      title: 'Spec %',
+      dataIndex: 'spec_completeness',
+      key: 'spec_completeness',
+      width: 100,
+      align: 'center',
+      render: (val: number) => (
+        <Progress
+          percent={Math.round((val || 0) * 100)}
+          size="small"
+          status={val >= 0.75 ? 'success' : val >= 0.5 ? 'normal' : 'exception'}
+        />
+      ),
     },
     {
       title: 'Verified',
@@ -369,6 +429,18 @@ export default function MasterItems() {
                   }))
                 : []
             }
+          />
+          <Select
+            placeholder="Table Type"
+            allowClear
+            style={{ width: 160 }}
+            onChange={setTableTypeFilter}
+            options={[
+              { label: 'A - Activity', value: 'A' },
+              { label: 'M - Material', value: 'M' },
+              { label: 'L - Labour', value: 'L' },
+              { label: 'E - Equipment', value: 'E' },
+            ]}
           />
           <Select
             placeholder="Verification Status"

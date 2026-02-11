@@ -409,7 +409,7 @@ class WorkCodeGenerator:
         description: str,
         sec_code: str,
         unit: str = None,
-        include_grade: bool = True
+        include_grade: bool = False
     ) -> str:
         """
         Tạo work code từ description và SEC code
@@ -464,8 +464,14 @@ class WorkCodeGenerator:
         - S01-EARTH-EXCAV-0001 (with sub-category)
         - S01-EARTH-0001 (without sub-category)
         - S02-CONC-M200-0001 (with material grade)
+        - A.CV.CON.POUR.COL (v4.0 format)
         """
-        # Pattern: S{2digits}-{WORD}-({WORD|M\d+}-)?{4digits}
+        # v4.0 format
+        if '.' in work_code:
+            v4_pattern = r'^[AMLE]\.[A-Z]{2}\.[A-Z]{2,5}\.[A-Z0-9]{3,5}\.[A-Z]{2,5}$'
+            return bool(re.match(v4_pattern, work_code))
+
+        # Legacy S-prefix format
         pattern = r'^S\d{2}-[A-Z]+-(([A-Z]+|M\d{2,3})-)?[0-9]{4}$'
         return bool(re.match(pattern, work_code))
 
@@ -514,6 +520,37 @@ class WorkCodeGenerator:
                 return keyword.title()
 
         return category_code
+
+    def generate_v4_code(
+        self,
+        description: str,
+        sec_code: str,
+        specs: dict = None,
+        table_type: str = 'A',
+    ) -> str:
+        """
+        Generate a v4.0 format code using V4CodeGenerator.
+
+        Delegates to V4CodeGenerator for the new dot-separated format.
+
+        Args:
+            description: Vietnamese work description
+            sec_code: Legacy SEC code
+            specs: Dict with spec fields (category, material, grade, dimension)
+            table_type: 'A', 'M', 'L', or 'E'
+
+        Returns:
+            v4.0 code string like "A.CV.CON.POUR.COL"
+        """
+        from app.services.v4_code_generator import V4CodeGenerator
+        gen = V4CodeGenerator()
+        return gen.generate(description, sec_code, specs, table_type)
+
+    def validate_v4_code(self, code: str) -> bool:
+        """Validate a v4.0 format code (5-level dot-separated)."""
+        from app.services.v4_code_generator import V4CodeGenerator
+        gen = V4CodeGenerator()
+        return gen.validate_v4_code(code)
 
     def regenerate_all_codes(self, dry_run: bool = True) -> Dict:
         """

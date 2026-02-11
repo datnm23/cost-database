@@ -383,12 +383,12 @@ def multi_code_search(
 ):
     """
     Tìm kiếm đồng thời trên Work Code, Legal Code, ISO Code
-    
+
     Example: GET /api/v1/codes/search/multi?query=bê tông&limit=10
     """
     # Would search across all tables
     # Simplified placeholder
-    
+
     return {
         "query": query,
         "total_results": 0,
@@ -397,4 +397,149 @@ def multi_code_search(
             "legal_codes": [],
             "iso_codes": []
         }
+    }
+
+
+# ==================== SEC Code v4.0 Endpoints ====================
+
+class SECCodeV4Response(BaseModel):
+    """SEC Code v4.0 information (3-level format: PREFIX.GROUP.TYPE)"""
+    code: str
+    table_type: str
+    group_code: str
+    type_code: str
+    name_vi: Optional[str]
+    name_en: Optional[str]
+    unit: Optional[str]
+    keywords_vi: Optional[str]
+    keywords_en: Optional[str]
+    waste_percent: Optional[float]
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/v4/", response_model=list)
+def list_v4_codes(
+    table_type: Optional[str] = Query(None, pattern="^[AMLE]$", description="Filter: A/M/L/E"),
+    group_code: Optional[str] = Query(None, description="Filter by group (CONC, RBAR, PIPE, etc.)"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """
+    List v4.0 reference codes (3-level format) with optional filters.
+
+    Code format: PREFIX.GROUP.TYPE  (e.g. A.CONC.STR)
+
+    Examples:
+    - GET /api/v1/codes/v4/?table_type=A — All activity codes
+    - GET /api/v1/codes/v4/?group_code=CONC — All concrete codes across tables
+    - GET /api/v1/codes/v4/?table_type=M&group_code=CONC — Concrete material codes
+    """
+    from app.services.sec_code_v4_mapper import get_sec_code_v4_mapper
+
+    mapper = get_sec_code_v4_mapper(db)
+    codes = mapper.list_codes(
+        table_type=table_type,
+        group_code=group_code,
+        limit=limit,
+        offset=offset,
+    )
+
+    return [
+        {
+            "code": c.code,
+            "table_type": c.table_type,
+            "group_code": c.group_code,
+            "type_code": c.type_code,
+            "name_vi": c.name_vi,
+            "name_en": c.name_en,
+            "unit": c.unit,
+            "keywords_vi": c.keywords_vi,
+            "keywords_en": c.keywords_en,
+            "waste_percent": c.waste_percent,
+            "is_active": c.is_active,
+        }
+        for c in codes
+    ]
+
+
+@router.get("/v4/mapping")
+def get_legacy_to_v4_mapping(
+    db: Session = Depends(get_db),
+):
+    """
+    Get the complete legacy SEC-xx → v4.0 discipline mapping.
+
+    Returns a dict mapping legacy SEC codes to v4.0 discipline codes.
+    """
+    from app.services.sec_code_v4_mapper import get_sec_code_v4_mapper
+
+    mapper = get_sec_code_v4_mapper(db)
+    mapping = mapper.get_full_mapping()
+
+    return {
+        "total_mappings": len(mapping),
+        "mapping": mapping,
+    }
+
+
+@router.post("/v4/map-item/{master_id}")
+def map_item_to_v4(
+    master_id: int,
+    table_type: str = Query("A", pattern="^[AMLE]$"),
+    db: Session = Depends(get_db),
+):
+    """
+    Map a master item to a v4.0 code.
+
+    Generates and saves a v4.0 code for the given master item.
+    """
+    from app.models.master_work_item import MasterWorkItem
+    from app.services.v4_code_generator import V4CodeGenerator
+
+    item = db.query(MasterWorkItem).filter(
+        MasterWorkItem.master_id == master_id
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Master item not found")
+
+    generator = V4CodeGenerator()
+    specs = {
+        'category': item.spec_category,
+        'material': item.spec_material,
+        'grade': item.spec_grade,
+        'dimension': item.spec_dimension,
+    }
+
+    v4_code = generator.generate(
+        description=item.description,
+        sec_code=item.sec_code,
+        specs=specs,
+        table_type=table_type,
+    )
+
+    # Save
+    if not item.work_code_legacy:
+        item.work_code_legacy = item.work_code
+    item.sec_code_v4 = v4_code
+    item.item_table_type = table_type
+
+    # Generate unique instance code
+    instance_code = generator.generate_instance_code(
+        ref_code=v4_code,
+        db=db,
+    )
+    item.instance_code = instance_code
+    db.commit()
+
+    return {
+        "master_id": master_id,
+        "v4_code": v4_code,
+        "instance_code": instance_code,
+        "saved": True,
+        "work_code_legacy": item.work_code_legacy,
     }

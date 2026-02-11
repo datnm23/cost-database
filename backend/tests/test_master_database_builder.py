@@ -73,6 +73,9 @@ class _FakeGatekeeperResult:
     indicators: Dict[str, bool] = None
     defaults_applied: Dict[str, Any] = None
     enhanced_description: str = ''
+    suggested_spec_status: str = 'draft'
+    suggested_spec_source: str = 'default'
+    suggested_spec_confidence: float = 0.3
 
     def __post_init__(self):
         if self.reasons is None:
@@ -178,6 +181,8 @@ class TestStep1Aggregation:
         builder.spec_extractor = MagicMock()
         builder.gatekeeper = MagicMock()
         builder.code_generator = MagicMock()
+        builder.v4_code_generator = MagicMock()
+        builder.v4_code_generator.generate.return_value = ('A.CONC.STR', 'CV', None)
         return builder
 
     def test_empty_file_ids(self):
@@ -399,6 +404,7 @@ class TestStep3CodingTagging:
         builder.spec_extractor = MagicMock()
         builder.gatekeeper = MagicMock()
         builder.code_generator = MagicMock()
+        builder.v4_code_generator = MagicMock()
 
         # Default mock returns
         builder.orchestrator.normalize.return_value = _make_norm_result(
@@ -408,6 +414,8 @@ class TestStep3CodingTagging:
             category='be tong', grade='M200'
         )
         builder.code_generator.generate_work_code.return_value = 'S02-CONC-M200-0001'
+        builder.v4_code_generator.generate.return_value = ('A.CONC.STR', 'CV', None)
+        builder.v4_code_generator.generate_instance_code.return_value = 'A.CONC.STR-001'
 
         return builder
 
@@ -583,6 +591,8 @@ class TestEndToEnd:
         builder.spec_extractor = MagicMock()
         builder.gatekeeper = MagicMock()
         builder.code_generator = MagicMock()
+        builder.v4_code_generator = MagicMock()
+        builder.v4_code_generator.generate.return_value = ('A.CONC.STR', 'CV', None)
         return builder
 
     def test_full_pipeline_empty_input(self):
@@ -940,3 +950,59 @@ class TestSECRuleBasedClassifier:
         """'van' patterns should not match 'ván khuôn'."""
         builder = self._make_builder()
         assert builder._classify_sec_by_rules('ván khuôn dầm') is None
+
+
+# ============================================================
+# Test Item Type Detection
+# ============================================================
+
+class TestItemTypeDetection:
+
+    def _make_builder(self):
+        db = _MockDB()
+        builder = MasterDatabaseBuilder.__new__(MasterDatabaseBuilder)
+        builder.db = db
+        builder.orchestrator = MagicMock()
+        builder.spec_extractor = MagicMock()
+        builder.gatekeeper = MagicMock()
+        builder.code_generator = MagicMock()
+        return builder
+
+    def test_activity_default(self):
+        builder = self._make_builder()
+        assert builder._detect_item_type('đổ bê tông cột') == 'A'
+        assert builder._detect_item_type('đào đất hố móng') == 'A'
+        assert builder._detect_item_type('xây tường gạch') == 'A'
+        assert builder._detect_item_type('trát tường vữa') == 'A'
+
+    def test_material_detection(self):
+        builder = self._make_builder()
+        assert builder._detect_item_type('vật liệu bê tông') == 'M'
+        assert builder._detect_item_type('cung cấp thép hình') == 'M'
+        assert builder._detect_item_type('ống pvc d60') == 'M'
+        assert builder._detect_item_type('cáp cu/xlpe 4x16') == 'M'
+        assert builder._detect_item_type('van cổng dn80') == 'M'
+        assert builder._detect_item_type('bê tông thương phẩm m300') == 'M'
+        assert builder._detect_item_type('vữa xây xi măng') == 'M'
+        assert builder._detect_item_type('xi măng PCB40') == 'M'
+
+    def test_labour_detection(self):
+        builder = self._make_builder()
+        assert builder._detect_item_type('nhân công bậc 3/7') == 'L'
+        assert builder._detect_item_type('thợ hàn bậc 4') == 'L'
+        assert builder._detect_item_type('ngày công lao động') == 'L'
+        assert builder._detect_item_type('ca thợ điện') == 'L'
+
+    def test_equipment_detection(self):
+        builder = self._make_builder()
+        assert builder._detect_item_type('máy đào 0.8m3') == 'E'
+        assert builder._detect_item_type('cần trục 25 tấn') == 'E'
+        assert builder._detect_item_type('xe tải 5 tấn') == 'E'
+        assert builder._detect_item_type('ca máy trộn bê tông') == 'E'
+        assert builder._detect_item_type('đầm dùi 1.5kw') == 'E'
+
+    def test_ambiguous_defaults_to_activity(self):
+        """Unknown descriptions should default to Activity."""
+        builder = self._make_builder()
+        assert builder._detect_item_type('công tác khác') == 'A'
+        assert builder._detect_item_type('lắp đặt thiết bị') == 'A'

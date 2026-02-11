@@ -199,6 +199,10 @@ class GatekeeperResult:
     indicators: Dict[str, bool] = field(default_factory=dict)  # Breakdown of quality indicators
     defaults_applied: Dict[str, Any] = field(default_factory=dict)  # Default settings applied
     enhanced_description: Optional[str] = None  # Description with defaults applied
+    # v4.0 spec lifecycle suggestions
+    suggested_spec_status: str = 'draft'
+    suggested_spec_source: str = 'default'
+    suggested_spec_confidence: float = 0.3
 
 
 class MasterDataGatekeeper:
@@ -424,13 +428,32 @@ class MasterDataGatekeeper:
             if not reasons:
                 reasons.append("Insufficient quality indicators")
 
+        # Step 9: Determine spec lifecycle suggestions
+        suggested_spec_status = 'draft'
+        suggested_spec_source = 'default'
+        suggested_spec_confidence = 0.3
+
+        if indicators.get('has_specs'):
+            # Has real specs from the description (likely from BOQ)
+            suggested_spec_source = 'boq'
+            suggested_spec_confidence = 0.5
+            suggested_spec_status = 'detailed'
+        elif defaults_applied.get('default_grade'):
+            # Using system defaults
+            suggested_spec_source = 'default'
+            suggested_spec_confidence = 0.3
+            suggested_spec_status = 'draft'
+
         return GatekeeperResult(
             status=status,
             score=score,
             reasons=reasons,
             indicators=indicators,
             defaults_applied=defaults_applied if defaults_applied else {},
-            enhanced_description=enhanced_description
+            enhanced_description=enhanced_description,
+            suggested_spec_status=suggested_spec_status,
+            suggested_spec_source=suggested_spec_source,
+            suggested_spec_confidence=suggested_spec_confidence,
         )
 
     def validate_batch(

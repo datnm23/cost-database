@@ -47,6 +47,9 @@ class LineItem(Base):
     match_type = Column(Enum(MatchType), default=MatchType.none)
     original_sheet_name = Column(String(100), nullable=True)
 
+    # v4.0 code reference
+    sec_code_v4 = Column(String(15), nullable=True, comment='Mapped v4.0 code e.g. A.CONC.STR')
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

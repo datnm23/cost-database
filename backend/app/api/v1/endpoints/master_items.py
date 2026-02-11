@@ -43,6 +43,26 @@ class MasterItemResponse(BaseModel):
     occurrence_count: int
     source_files: Optional[str]
     is_verified: bool
+    # Spec lifecycle fields
+    spec_status: Optional[str] = 'draft'
+    spec_source: Optional[str] = 'default'
+    spec_confidence: Optional[float] = 0.0
+    spec_completeness: Optional[float] = 0.0
+    spec_category: Optional[str] = None
+    spec_material: Optional[str] = None
+    spec_grade: Optional[str] = None
+    spec_dimension: Optional[str] = None
+    # v4.0 code
+    sec_code_v4: Optional[str] = None
+    instance_code: Optional[str] = None
+    item_table_type: Optional[str] = 'A'
+    work_code_legacy: Optional[str] = None
+    # v4.0 attributes (stored on MasterWorkItem, not in the code)
+    discipline: Optional[str] = None
+    location: Optional[str] = None
+    material_type: Optional[str] = None
+    worker_grade: Optional[str] = None
+    equip_type: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -62,17 +82,24 @@ class MasterItemUpdate(BaseModel):
     sec_code: Optional[str] = None
     unit_standard: Optional[str] = None
     is_verified: Optional[bool] = None
+    # Spec fields
+    spec_grade: Optional[str] = None
+    spec_material: Optional[str] = None
+    spec_dimension: Optional[str] = None
+    spec_status: Optional[str] = None
 
 
 class WorkCodeGenerateRequest(BaseModel):
     description: str
     sec_code: str
     unit: Optional[str] = None
-    include_grade: bool = True
+    include_grade: bool = False
+    generate_v4: bool = True
 
 
 class WorkCodeGenerateResponse(BaseModel):
     work_code: str
+    v4_code: Optional[str] = None
     description: str
     sec_code: str
     material_grade: Optional[str]
@@ -231,6 +258,7 @@ def list_master_items(
     sec_code: Optional[str] = None,
     search: Optional[str] = None,
     verified_only: bool = False,
+    item_table_type: Optional[str] = Query(None, pattern="^[AMLE]$"),
     db: Session = Depends(get_db)
 ):
     """
@@ -241,6 +269,7 @@ def list_master_items(
     - **sec_code**: Filter by SEC code (e.g., SEC-01)
     - **search**: Search in description
     - **verified_only**: Only return verified items
+    - **item_table_type**: Filter by table type (A/M/L/E)
     """
     query = db.query(MasterWorkItem).filter(MasterWorkItem.is_active == True)
 
@@ -254,6 +283,9 @@ def list_master_items(
 
     if verified_only:
         query = query.filter(MasterWorkItem.is_verified == True)
+
+    if item_table_type:
+        query = query.filter(MasterWorkItem.item_table_type == item_table_type)
 
     items = query.order_by(MasterWorkItem.sec_code, MasterWorkItem.work_code)\
                  .offset(skip)\
@@ -428,8 +460,17 @@ def generate_work_code(
     is_valid = generator.validate_work_code(work_code)
     parsed = generator.parse_work_code(work_code)
 
+    # Generate v4 code if requested
+    v4_code = None
+    if data.generate_v4:
+        v4_code = generator.generate_v4_code(
+            description=data.description,
+            sec_code=data.sec_code,
+        )
+
     return {
         "work_code": work_code,
+        "v4_code": v4_code,
         "description": data.description,
         "sec_code": data.sec_code,
         "material_grade": material_grade,
@@ -1106,3 +1147,128 @@ def accept_single_match(
         accepted=True,
         message="Fuzzy match accepted successfully",
     )
+
+
+# ==============================================
+# Spec Lifecycle Endpoints
+# ==============================================
+
+class SpecUpdateRequest(BaseModel):
+    """Request to update a spec field with lifecycle tracking"""
+    field: str = Field(..., pattern=r'^spec_(grade|material|dimension|category)$')
+    value: str
+    source: str = Field('manual', pattern=r'^(manual|boq|drawing|as_built|default)$')
+    notes: Optional[str] = None
+
+
+class SpecPromoteRequest(BaseModel):
+    """Request to promote spec status"""
+    target_status: str = Field(..., pattern=r'^(detailed|final)$')
+
+
+class SpecChangeLogResponse(BaseModel):
+    log_id: int
+    master_id: int
+    field_name: str
+    old_value: Optional[str]
+    new_value: Optional[str]
+    old_status: Optional[str]
+    new_status: Optional[str]
+    change_source: str
+    changed_by: Optional[int]
+    changed_at: datetime
+    notes: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+@router.put("/{master_id}/specs", response_model=MasterItemResponse)
+def update_item_spec(
+    master_id: int,
+    data: SpecUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Update a single spec field with lifecycle tracking.
+
+    Creates an audit trail entry in spec_change_logs.
+    Automatically recomputes spec_completeness and updates spec_source/confidence.
+    """
+    from app.services.spec_lifecycle_service import get_spec_lifecycle_service
+
+    service = get_spec_lifecycle_service(db)
+    try:
+        item = service.update_spec(
+            master_id=master_id,
+            field=data.field,
+            value=data.value,
+            source=data.source,
+            notes=data.notes,
+        )
+        db.commit()
+        db.refresh(item)
+        return item
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{master_id}/promote-spec", response_model=MasterItemResponse)
+def promote_spec_status(
+    master_id: int,
+    data: SpecPromoteRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Promote spec status: draft → detailed → final.
+
+    Validation rules:
+    - draft → detailed: spec_completeness >= 50%
+    - detailed → final: spec_completeness >= 75% AND is_verified == True
+    """
+    from app.services.spec_lifecycle_service import get_spec_lifecycle_service
+
+    service = get_spec_lifecycle_service(db)
+    try:
+        item = service.promote_status(
+            master_id=master_id,
+            target_status=data.target_status,
+        )
+        db.commit()
+        db.refresh(item)
+        return item
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{master_id}/spec-history", response_model=List[SpecChangeLogResponse])
+def get_spec_history(
+    master_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Get spec change audit trail for a master item."""
+    from app.services.spec_lifecycle_service import get_spec_lifecycle_service
+
+    service = get_spec_lifecycle_service(db)
+    logs = service.get_change_history(master_id=master_id, limit=limit)
+    return logs
+
+
+@router.get("/incomplete-specs", response_model=List[MasterItemResponse])
+def get_incomplete_specs(
+    threshold: float = Query(0.75, ge=0.0, le=1.0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """
+    List items needing spec enrichment.
+
+    Returns items with spec_completeness below the given threshold,
+    sorted by completeness ascending (most incomplete first).
+    """
+    from app.services.spec_lifecycle_service import get_spec_lifecycle_service
+
+    service = get_spec_lifecycle_service(db)
+    items = service.get_incomplete_items(threshold=threshold, limit=limit)
+    return items

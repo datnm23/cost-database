@@ -14,6 +14,9 @@ from app.models.master_synonym import MasterSynonym
 from app.models.unit_standard import UnitStandard, SecCodeDefaultUnit
 from app.models.column_mapping_template import ColumnMappingTemplate, TemplateVisibility
 from app.models.template_usage_log import TemplateUsageLog, MatchType, UsageAction
+from app.models.spec_change_log import SpecChangeLog
+from app.models.sec_code_v4 import SECCodeV4
+from app.models.activity_bom import ActivityBOM
 
 __all__ = [
     "User",
@@ -35,4 +38,7 @@ __all__ = [
     "TemplateUsageLog",
     "MatchType",
     "UsageAction",
+    "SpecChangeLog",
+    "SECCodeV4",
+    "ActivityBOM",
 ]

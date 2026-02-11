@@ -87,7 +87,14 @@ class DescriptionNormalizer:
         WorkCategory.STEEL_MEP: [
             'lắp đặt', 'thi công',
             'ống', 'dây', 'cáp', 'thiết bị',
-            'hệ thống', 'điện', 'nước', 'thông gió'
+            'hệ thống', 'điện', 'nước', 'thông gió',
+            'van cổng', 'van bướm', 'van bi', 'van một chiều',
+            'côn thu', 'khớp nối', 'măng sông',
+            'contactor', 'aptomat', 'đèn báo',
+            'đồng hồ nước', 'đồng hồ áp',
+            'bơm chìm', 'bơm ly tâm', 'bơm tăng áp',
+            'sprinkler', 'báo cháy', 'bình chữa cháy',
+            'điều hòa', 'dàn lạnh', 'dàn nóng', 'ống gió',
         ]
     }
 
@@ -443,6 +450,27 @@ class DescriptionNormalizer:
         if ('bê tông' in text_lower or 'betong' in text_lower or text_lower.startswith('vữa bê tông')):
             if 'cọc' not in text_lower:
                 return self.WorkCategory.CONCRETE_REBAR
+
+        # Strong indicators for MEP (pipe fittings, valves, electrical)
+        # These must be checked before scoring because "thép" in "cút thép" would
+        # otherwise match EARTHWORKS_PILING or CONCRETE_REBAR
+        mep_indicators = [
+            'van cổng', 'van bướm', 'van bi', 'van một chiều',
+            'côn thu', 'khớp nối', 'măng sông',
+            'cút thép', 'cút pvc', 'cút upvc', 'cút hdpe',
+            'tê thép', 'tê pvc', 'tê upvc', 'tê hdpe',
+            'bích thép', 'bích pvc', 'bích upvc', 'bích hdpe',
+            'contactor', 'aptomat', 'đèn báo',
+            'đồng hồ nước', 'đồng hồ áp', 'đồng hồ đo',
+            'bơm chìm', 'bơm ly tâm', 'bơm tăng áp',
+            'sprinkler', 'báo cháy', 'bình chữa cháy',
+            'điều hòa', 'dàn lạnh', 'dàn nóng', 'ống gió',
+            'mccb', 'mcb', 'rccb', 'rcbo',
+            'tủ điện', 'tủ phân phối', 'tủ hạ thế',
+        ]
+        for indicator in mep_indicators:
+            if indicator in text_lower:
+                return self.WorkCategory.STEEL_MEP
 
         # Count matches for each category
         scores = {category: 0 for category in [

@@ -35,6 +35,7 @@ from app.services.normalization_orchestrator import get_normalization_orchestrat
 from app.services.normalization_result import NormalizationResult, WorkCategory
 from app.services.spec_extractor import get_spec_extractor
 from app.services.work_code_generator import WorkCodeGenerator
+from app.services.v4_code_generator import V4CodeGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ class MasterDatabaseBuilder:
         self.spec_extractor = get_spec_extractor()
         self.gatekeeper = get_gatekeeper()
         self.code_generator = WorkCodeGenerator(db)
+        self.v4_code_generator = V4CodeGenerator()
         self._classifier = None
 
     def _get_classifier(self):
@@ -465,6 +467,40 @@ class MasterDatabaseBuilder:
                 unit=item.canonical_unit,
             )
 
+            # Detect item table type from description
+            detected_type = self._detect_item_type(desc_display)
+
+            # Generate v4.0 code
+            spec_dict = {
+                'category': specs.category,
+                'material': specs.material,
+                'grade': specs.grade,
+                'dimension': specs.dimension,
+            }
+            v4_code, v4_discipline, v4_location = self.v4_code_generator.generate(
+                description=desc_display,
+                sec_code=sec_code,
+                specs=spec_dict,
+                table_type=detected_type,
+            )
+
+            # Generate unique instance code
+            instance_code = self.v4_code_generator.generate_instance_code(
+                ref_code=v4_code,
+                db=self.db,
+            )
+
+            # Resolve type-specific attributes from specs
+            v4_material_type = None
+            v4_worker_grade = None
+            v4_equip_type = None
+            if detected_type == 'M':
+                v4_material_type = spec_dict.get('material') or None
+            elif detected_type == 'L':
+                v4_worker_grade = spec_dict.get('grade') or None
+            elif detected_type == 'E':
+                v4_equip_type = spec_dict.get('category') or None
+
             master_item = MasterWorkItem(
                 work_code=work_code,
                 description=desc_display,
@@ -479,7 +515,24 @@ class MasterDatabaseBuilder:
                 spec_grade=specs.grade,
                 spec_dimension=specs.dimension,
                 matching_key=specs.to_matching_key(),
+                # Spec lifecycle fields
+                spec_status=gk_result.suggested_spec_status,
+                spec_source=gk_result.suggested_spec_source,
+                spec_confidence=gk_result.suggested_spec_confidence,
+                # v4.0 codes
+                sec_code_v4=v4_code,
+                instance_code=instance_code,
+                item_table_type=detected_type,
+                # v4.0 attributes (stored separately, not in the code)
+                discipline=v4_discipline,
+                location=v4_location,
+                material_type=v4_material_type,
+                worker_grade=v4_worker_grade,
+                equip_type=v4_equip_type,
             )
+            # Compute spec completeness
+            master_item.spec_completeness = master_item.compute_spec_completeness()
+
             self.db.add(master_item)
             self.db.flush()  # Get master_id for synonyms
 
@@ -560,6 +613,62 @@ class MasterDatabaseBuilder:
                         li.needs_review = False
 
         self.db.flush()
+
+    # ── Item Type Detection ──
+
+    # Keywords that indicate Material items (M)
+    _MATERIAL_KEYWORDS = [
+        r'\bvật\s*liệu\b', r'\bvật\s*tư\b',
+        r'\bcung\s*cấp\b', r'\bmua\b',
+        r'\bthép\s+hình\b', r'\bthép\s+tấm\b',
+        r'\bcát\b', r'\bđá\b', r'\bxi\s*măng\b',
+        r'\bsơn\b(?!\s+\w*tường)', r'\bgạch\s+ốp\b', r'\bgạch\s+lát\b',
+        r'\bống\s+(hdpe|pvc|upvc|ppr|thép|gang|inox)\b',
+        r'\bcáp\s+(cu|nhôm|điện)\b', r'\bdây\s+điện\b',
+        r'\bvan\s+(cổng|bướm|bi|cầu|một\s+chiều)\b',
+        r'\bbê\s*tông\s+thương\s+phẩm\b',
+        r'\bvữa\s+(xây|trát|lót)\b',
+    ]
+
+    # Keywords that indicate Labour items (L)
+    _LABOUR_KEYWORDS = [
+        r'\bnhân\s*công\b', r'\bthợ\b', r'\bcông\s+nhân\b',
+        r'\bbậc\s*\d\b', r'\blao\s+động\b',
+        r'\bngày\s+công\b', r'\bca\s+thợ\b',
+    ]
+
+    # Keywords that indicate Equipment items (E)
+    _EQUIPMENT_KEYWORDS = [
+        r'\bmáy\s+(đào|xúc|trộn|bơm|khoan|ép|lu|cắt|hàn|cẩu|phát)\b',
+        r'\bcần\s+trục\b', r'\bcẩu\b',
+        r'\bxe\s+(tải|ben|bồn|cứu\s+hỏa)\b',
+        r'\bca\s+máy\b',
+        r'\bthiết\s+bị\s+thi\s+công\b',
+        r'\bđầm\s+(dùi|bàn|cóc)\b',
+    ]
+
+    def _detect_item_type(self, description: str) -> str:
+        """
+        Detect item table type from description keywords.
+
+        Returns: 'A' (Activity), 'M' (Material), 'L' (Labour), 'E' (Equipment)
+        Default is 'A' if no specific pattern matches.
+        """
+        desc_lower = description.lower()
+
+        for pattern in self._MATERIAL_KEYWORDS:
+            if re.search(pattern, desc_lower):
+                return 'M'
+
+        for pattern in self._LABOUR_KEYWORDS:
+            if re.search(pattern, desc_lower):
+                return 'L'
+
+        for pattern in self._EQUIPMENT_KEYWORDS:
+            if re.search(pattern, desc_lower):
+                return 'E'
+
+        return 'A'
 
     def _cluster_descriptions(
         self,
