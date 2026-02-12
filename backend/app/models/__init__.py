@@ -17,6 +17,8 @@ from app.models.template_usage_log import TemplateUsageLog, MatchType, UsageActi
 from app.models.spec_change_log import SpecChangeLog
 from app.models.sec_code_v4 import SECCodeV4
 from app.models.activity_bom import ActivityBOM
+from app.models.project_work_item import ProjectWorkItem
+from app.models.ai_training_log import AITrainingLog
 
 __all__ = [
     "User",
@@ -41,4 +43,6 @@ __all__ = [
     "SpecChangeLog",
     "SECCodeV4",
     "ActivityBOM",
+    "ProjectWorkItem",
+    "AITrainingLog",
 ]

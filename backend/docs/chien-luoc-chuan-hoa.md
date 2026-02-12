@@ -325,59 +325,308 @@ Ví dụ: `A.CONC.STR` — Activity, Concrete, Structural
 
 ### 4.3 Discipline (attribute — không nằm trong mã)
 
-Discipline nay là attribute trên `master_work_items`, ánh xạ từ SEC code:
+Discipline là attribute trên `master_work_items`, được resolve từ description keywords:
 
-| SEC Code | Discipline | Mô tả |
+| Từ khóa trong description | Discipline | Mô tả |
 |:---|:---:|:---|
-| SEC-00 | PM | Preliminaries |
-| SEC-01, SEC-02 | CV | Civil (Đất, Kết cấu) |
-| SEC-03 | AR | Architecture (Hoàn thiện) |
-| SEC-04-01 | EL | Electrical |
-| SEC-04-02 | PL | Plumbing |
-| SEC-04-03 | ME | Mechanical/HVAC |
-| SEC-04-04 | FP | Fire Protection |
-| SEC-05 | EX | External Works |
-| SEC-05-03 | LA | Landscape |
+| điện, cáp, dây điện, tủ điện, đèn | EL | Electrical |
+| ống, van, bơm, nước | PL | Plumbing |
+| điều hòa, thông gió | ME | Mechanical/HVAC |
+| pccc, cháy, sprinkler | FP | Fire Protection |
+| *(không khớp keyword nào)* | CV | Civil (default) |
+
+> **Lưu ý:** Danh sách đầy đủ các discipline: PM, CV, AR, EN, EL, PL, ME, FP, LV, VT, LA, EX (xem mục 10.2).
 
 ### 4.4 L1: GROUP (Nhóm công tác)
 
+**Concrete & Rebar & Formwork:**
+
 | Từ khóa | GROUP | Từ khóa | GROUP |
 |:---|:---:|:---|:---:|
-| bê tông | CONC | cáp | CABL |
-| cốt thép | RBAR | đèn | LITE |
-| ván khuôn | FWRK | tủ điện | PANL |
-| đào đất | EXCV | điều hòa | HVAC |
-| đắp đất | FILL | pccc | DETC |
-| cọc | PILE | đường | ROAD |
-| ống | PIPE | cây | PLNT |
-| gạch/xây | WALL | van | FITG |
-| sơn | PANT | bơm | PUMP |
-| trát | WALL | chống thấm | WTPF |
-| lát/ốp | FLOR | hàng rào | FNCE |
+| bê tông / be tong / betong | CONC | cốt thép / thép hình | RBAR |
+| ván khuôn / coppha | FWRK | | |
+
+**Earth & Piling:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| đào đất / đắp đất / san lấp / san nền | SOIL | cấp phối | AGGT |
+| cọc | PILE | | |
+
+**Finishing:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| gạch xây / gạch đặc / block / xây | BRCK | trát / bả matit | PLST |
+| sơn | PANT | lát / ốp / sàn gỗ / vinyl | TILE |
+| trần / thạch cao | CLNG | cửa | DOOR |
+| chống thấm | WPRF | bồn cầu / lavabo / thiết bị vệ sinh | SANT |
+| lan can | RLNG | | |
+
+**Envelope:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| vách kính / mặt dựng / curtain | CWLL | aluminium / lam chắn | CLAD |
+
+**Electrical:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| cáp / dây điện | CABL | đèn | LITE |
+| tủ điện | PANL | aptomat / mccb / mcb | BRKR |
+| ống luồn | COND | máng cáp | TRAY |
+
+**Plumbing:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| ống | PIPE | van | VALV |
+| cút / tê / côn thu / bích | FITG | bơm | PUMP |
+| bể nước | TANK | | |
+
+**HVAC:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| điều hòa / ahu / fcu / vrf | HVAC | ống gió | DUCT |
+| cách nhiệt | INSU | | |
+
+**Fire Protection:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| sprinkler / đầu phun | SPRK | báo cháy / báo khói / báo nhiệt | FALM |
+| pccc / chữa cháy / bình chữa cháy | FFGT | | |
+
+**Road & Landscape:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| đường / bê tông nhựa / bó vỉa | ROAD | cây / cảnh quan / cỏ | LAND |
+
+**Generic:**
+
+| Từ khóa | GROUP | Từ khóa | GROUP |
+|:---|:---:|:---|:---:|
+| thang máy | ELVT | hàng rào | FENC |
+
+> **Fallback:** Khi không khớp keyword nào → GROUP = `GENR` (Generic)
 
 ### 4.5 L2: TYPE theo bảng A/M/L/E
 
 > **QUAN TRỌNG:** TYPE là sub-category — KHÔNG chứa grade/spec (M300, CB40, XLPE).
 > Grade được lưu riêng trong `spec_grade`, `spec_material` trên `master_work_items`.
 
-**Bảng A (Activity)** — Sub-category:
+**Concrete types:**
 
-| Từ khóa | TYPE | Từ khóa | TYPE |
-|:---|:---:|:---|:---:|
-| bê tông kết cấu | STR | bê tông lót | LEA |
-| bê tông móng | FND | ống/lắp đặt | GEN |
-| cốt thép vằn | DFM | chống thấm | GEN |
-| cốt thép cuộn | RND | cọc/khoan | BOR |
-| ván khuôn | GEN | cáp/dây | GEN |
-| đào máy | MCH | đường | GEN |
-| đào thủ công | MAN | cây | GEN |
-| xây | GEN | lát/ốp | GEN |
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| kết cấu | STR | Structural |
+| lót | LEA | Lean concrete |
+| móng / đài / giằng | FND | Foundation |
 
-**Bảng M (Material)** — Sub-category: `GEN`, `DFM` (deformed), `RND` (round), `CRM` (ceramic), `GRN` (granite)
+**Soil types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| đào | EXC | Excavation |
+| đắp / lấp / san lấp | FIL | Filling |
+| san nền | GRD | Grading |
+| vận chuyển | TRN | Transport |
+
+**Pile types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| khoan / nhồi | BOR | Bored pile |
+| ép / đóng | DRV | Driven pile |
+| thí nghiệm | TST | Testing |
+
+**Rebar / Formwork types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| thép hình / thép | STL | Steel section |
+| gỗ | WOD | Wood formwork |
+
+**Brick types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| đặc | SOL | Solid brick |
+| aac | AAC | AAC block |
+| block bê tông | CON | Concrete block |
+
+**Plaster types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| xi măng / vữa | CEM | Cement plaster |
+| matit | PUT | Putty |
+
+**Paint types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| nội thất / trong nhà / trong | INT | Interior |
+| ngoại thất / ngoài | EXT | Exterior |
+| chống thấm | WPF | Waterproof paint |
+
+**Tile types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| ceramic | CER | Ceramic |
+| granite / đá tự nhiên | GRN / STN | Granite / Stone |
+| vinyl / spc | VYL | Vinyl |
+| gỗ công nghiệp | LAM | Laminate |
+
+**Ceiling types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| thạch cao | GYP | Gypsum |
+| nhôm | ALU | Aluminium |
+
+**Door types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| gỗ | WOD | Wood door |
+| nhôm kính / nhôm | ALU | Aluminium door |
+| chống cháy | FIR | Fire-rated door |
+
+**Waterproofing types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| màng / membrane | MEM | Membrane |
+| quét / coating | COT | Coating |
+
+**Cable types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| động lực | PWR | Power cable |
+| điều khiển | CTL | Control cable |
+| thông tin | COM | Communication cable |
+
+**Light types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| led | LED | LED |
+| sự cố | EMG | Emergency |
+
+**Panel types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| chính / msb | MSB | Main switchboard |
+| phân phối / db | DSB | Distribution board |
+
+**Pipe types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| cấp nước / cấp | SUP | Supply |
+| thoát nước / thoát | DRN | Drain |
+| pccc | FIR | Fire protection |
+
+**Valve types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| cổng | GAT | Gate valve |
+| bướm | BFL | Butterfly valve |
+| bi | BAL | Ball valve |
+| một chiều | CHK | Check valve |
+
+**Fitting types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| cút | ELB | Elbow |
+| tê | TEE | Tee |
+| côn thu | RED | Reducer |
+| bích | FLG | Flange |
+
+**Pump types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| chìm | SUB | Submersible |
+| ly tâm | CEN | Centrifugal |
+| tăng áp | BOS | Booster |
+
+**HVAC types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| split | SPL | Split system |
+| vrf | VRF | VRF system |
+| ahu | AHU | Air handling unit |
+| fcu | FCU | Fan coil unit |
+
+**Duct types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| mạ kẽm / tôn | GVN | Galvanized |
+| mềm | FLX | Flexible |
+
+**Sprinkler types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| quay lên / upright | UPR | Upright |
+| quay xuống / pendant | PND | Pendant |
+
+**Fire alarm types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| khói | SMK | Smoke detector |
+| nhiệt | HET | Heat detector |
+
+**Road types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| nhựa / asphalt | ASP | Asphalt |
+| vỉa | CRB | Curb |
+| vạch | MRK | Marking |
+
+**Landscape types:**
+
+| Từ khóa | TYPE | Mô tả |
+|:---|:---:|:---|
+| cây xanh / cây | TRE | Tree |
+| cỏ | TRF | Turf |
+| tưới | IRG | Irrigation |
 
 **Bảng L (Labour)** — Bậc thợ: `GR3`, `GR4`, `GR5`, `LBR`, `OPR`
 
 **Bảng E (Equipment)** — Loại máy: `CRN`, `EXC`, `PMP`, `TRK`, `MIX`, `CMP`, `GEN`
+
+**Group defaults** — Khi không tìm được TYPE keyword, mỗi GROUP dùng default TYPE:
+
+| GROUP | Default TYPE | GROUP | Default TYPE | GROUP | Default TYPE |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| CONC | STR | RBAR | STR | FWRK | STL |
+| SOIL | EXC | PILE | DRV | AGGT | CMP |
+| BRCK | SOL | PLST | CEM | PANT | INT |
+| TILE | CER | CLNG | GYP | DOOR | ALU |
+| WPRF | MEM | SANT | TLT | RLNG | GLS |
+| CWLL | GLS | CLAD | ALU | CABL | PWR |
+| LITE | LED | PANL | MSB | BRKR | MCB |
+| COND | PVC | TRAY | GVN | PIPE | SUP |
+| VALV | GAT | FITG | ELB | PUMP | CEN |
+| TANK | WTR | HVAC | SPL | DUCT | GVN |
+| INSU | RBR | SPRK | PND | FALM | SMK |
+| FFGT | EXT | ROAD | ASP | LAND | TRE |
+| ELVT | GEN | FENC | GEN | | |
 
 ### 4.6 Attributes thay thế L1 và L4
 
@@ -391,13 +640,25 @@ Thông tin trước đây nhúng trong mã 5-level nay lưu dưới dạng attri
 | `worker_grade` | L3 (khi L) | VARCHAR(10) | 3/7, 4/7, 5/7 |
 | `equip_type` | L3 (khi E) | VARCHAR(50) | Máy đào, cẩu tháp |
 
+**Location keywords** (ánh xạ từ description → attribute `location`):
+
+| Từ khóa | Location | Từ khóa | Location |
+|:---|:---:|:---|:---:|
+| móng | FND | cột | COL |
+| dầm | BEM | sàn | SLB |
+| tường | WAL | vách | SHW |
+| cầu thang | STR | mái | ROF |
+| hầm | BSM | nền | GRD |
+| hố | PIT | ban công | BLC |
+| hành lang | COR | bể | TNK |
+
 ### 4.7 Validation
 
-Pattern hợp lệ: `^[AMLE]\.[A-Z]{3,4}\.[A-Z0-9]{3}$`
+Pattern hợp lệ: `^[AMLE]\.[A-Z]{2,5}\.[A-Z]{2,4}$`
 
 - Chính xác 3 phần, ngăn cách bằng dấu `.`
-- L1 (GROUP) là 3-4 char UPPERCASE
-- L2 (TYPE) là 3 char UPPERCASE
+- L1 (GROUP) là 2-5 char UPPERCASE
+- L2 (TYPE) là 2-4 char UPPERCASE
 - Discipline, location, grade lưu riêng trong attributes
 - Code KHÔNG thay đổi khi spec thay đổi → stable identity
 
@@ -809,8 +1070,8 @@ Discipline nay là attribute trên `master_work_items`, không phải phần c�
 |:---:|:---|
 | 1 | Mã phải đúng 3 phần, ngăn cách bằng `.` |
 | 2 | L0 phải là `A`, `M`, `L`, hoặc `E` |
-| 3 | L1 (GROUP) phải 3-4 char UPPERCASE, nằm trong danh sách |
-| 4 | L2 (TYPE) phải 3 char UPPERCASE |
+| 3 | L1 (GROUP) phải 2-5 char UPPERCASE, nằm trong danh sách |
+| 4 | L2 (TYPE) phải 2-4 char UPPERCASE |
 | 5 | Mã KHÔNG chứa discipline, location, grade, spec |
 | 6 | Instance code format: `{REF_CODE}-{SEQ:03d}` |
 | 7 | Discipline phải nằm trong danh sách 12 bộ môn (attribute) |

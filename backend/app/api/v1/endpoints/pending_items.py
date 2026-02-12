@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.models.pending_master_item import PendingMasterItem
 from app.models.master_work_item import MasterWorkItem
 from app.services.work_code_generator import WorkCodeGenerator
+from app.services.learning_flywheel import get_learning_flywheel
 from app.schemas.pending_item import (
     PendingItemResponse,
     PendingItemUpdate,
@@ -153,6 +154,14 @@ async def approve_pending_item(
     item.reviewed_at = func.now()
     item.review_notes = data.notes
     item.master_id = master_item.master_id
+
+    # Flywheel: auto-create synonym + training log
+    flywheel = get_learning_flywheel(db)
+    flywheel.on_pending_approved(
+        pending_item=item,
+        master_item=master_item,
+        reviewer_id=data.reviewer_id,
+    )
 
     db.commit()
 

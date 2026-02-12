@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     AI_CONTEXT_SAMPLE_SIZE: int = 50  # Number of rows to sample for context analysis
     AI_DOMAIN_VALIDATION_ENABLED: bool = True  # Pass 4: Domain validation with AI correction
 
+    # Gatekeeper Thresholds
+    GATEKEEPER_GREEN_THRESHOLD: int = 90   # >= 90 → GREEN (auto-approve)
+    GATEKEEPER_YELLOW_THRESHOLD: int = 60  # 60-89 → YELLOW (pending review)
+    # < 60 → RED (project work item or quarantine)
+
     # Hybrid Matcher Settings
     HYBRID_MATCHER_ENABLED: bool = True  # Feature flag for hybrid matcher
     MATCH_CACHE_TTL: int = 86400  # 24 hours cache expiry

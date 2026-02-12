@@ -33,6 +33,13 @@ class MEPEquipmentResult:
 
 # Cable patterns - IMPROVED to preserve material info
 CABLE_PATTERNS = {
+    # Pattern: Cáp Cu/MICA/XLPE/PVC/FR-PVC 4x300mm2 (multi-layer cable with full insulation chain)
+    # Matches any cable with Cu/đồng followed by ≥2 /-separated layers containing XLPE
+    # Must be before 'xlpe' pattern since it's more specific
+    'xlpe_mica': {
+        'pattern': r'[Cc]áp\s*(?:đồng|Cu)?((?:/[A-Za-z][-A-Za-z]*){3,})\s+(\d+)[xX](\d+)\s*(?:mm2?)?',
+        'template': 'Cáp Cu{layers} - {cores}x{size}mm2',
+    },
     # Pattern: Cáp Cu/XLPE/PVC 4x300mm2 or Cáp đồng/XLPE/PVC 4X300
     'xlpe': {
         'pattern': r'[Cc]áp\s*(?:đồng|Cu)?[/\s]*(?:XLPE)[/\s]*(PVC|PE|DSTA)?\s*(\d+)[xX](\d+)\s*(?:mm2?)?',
@@ -548,7 +555,15 @@ class MEPEquipmentNormalizer:
         """Normalize cable description - PRESERVES Cu/XLPE/PVC info"""
         specs = {}
 
-        if cable_type == 'xlpe':
+        if cable_type == 'xlpe_mica':
+            # Groups: layers(/MICA/XLPE/PVC/FR-PVC), cores, size
+            layers = match.group(1)  # e.g. "/MICA/XLPE/PVC/FR-PVC"
+            cores = match.group(2)
+            size = match.group(3)
+            specs = {'layers': layers.lstrip('/'), 'cores': cores, 'size': size}
+            normalized = f"Cáp Cu{layers} - {cores}x{size}mm2"
+
+        elif cable_type == 'xlpe':
             # Groups: jacket(PVC/PE), cores, size
             jacket = match.group(1) or 'PVC'
             cores = match.group(2)

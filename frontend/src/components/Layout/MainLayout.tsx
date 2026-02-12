@@ -67,6 +67,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       icon: <AuditOutlined />,
       children: [
         { key: '/pending-items', label: 'Pending Review', icon: <AuditOutlined /> },
+        { key: '/project-work-items', label: 'Project Items', icon: <UnorderedListOutlined /> },
         { key: '/quarantine-log', label: 'Quarantine Log', icon: <StopOutlined /> },
       ],
     },

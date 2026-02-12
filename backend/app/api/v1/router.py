@@ -18,6 +18,8 @@ from app.api.v1.endpoints import (
     quarantine,
     units,
     templates,
+    project_work_items,
+    training_logs,
 )
 
 api_router = APIRouter()
@@ -40,3 +42,5 @@ api_router.include_router(pending_items.router, prefix="/pending-items", tags=["
 api_router.include_router(quarantine.router, prefix="/quarantine", tags=["Quarantine"])
 api_router.include_router(units.router, tags=["Unit Standards"])
 api_router.include_router(templates.router, prefix="/templates", tags=["Column Mapping Templates"])
+api_router.include_router(project_work_items.router, prefix="/project-work-items", tags=["Project Work Items"])
+api_router.include_router(training_logs.router, prefix="/training-logs", tags=["Training Logs"])

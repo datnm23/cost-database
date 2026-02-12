@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Any, Optional
 from enum import Enum
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -203,6 +205,18 @@ class GatekeeperResult:
     suggested_spec_status: str = 'draft'
     suggested_spec_source: str = 'default'
     suggested_spec_confidence: float = 0.3
+    # Forbidden pattern match info (for routing decisions)
+    is_forbidden_pattern: bool = False
+
+    @property
+    def gate_color(self) -> str:
+        """Map status/score to traffic gate color (GREEN/YELLOW/RED)."""
+        if self.status == 'APPROVED':
+            return 'GREEN'
+        elif self.status == 'PENDING_REVIEW':
+            return 'YELLOW'
+        else:
+            return 'RED'
 
 
 class MasterDataGatekeeper:
@@ -217,10 +231,10 @@ class MasterDataGatekeeper:
     - Default settings are applied when specs are insufficient
     """
 
-    # Thresholds
-    APPROVED_THRESHOLD = 75      # >= 75 → Auto add
-    PENDING_THRESHOLD = 50       # 50-74 → Need review
-    # < 50 → Rejected
+    # Thresholds (from config)
+    APPROVED_THRESHOLD = settings.GATEKEEPER_GREEN_THRESHOLD   # >= 90 → Auto add
+    PENDING_THRESHOLD = settings.GATEKEEPER_YELLOW_THRESHOLD   # 60-89 → Need review
+    # < 60 → Rejected
 
     # Minimum requirements (relaxed for Vietnamese)
     MIN_DESCRIPTION_LENGTH = 5   # Reduced from 10
@@ -349,7 +363,8 @@ class MasterDataGatekeeper:
                 status='REJECTED',
                 score=0,
                 reasons=[f"Forbidden pattern: {forbidden_match}"],
-                indicators={}
+                indicators={},
+                is_forbidden_pattern=True,
             )
 
         # Step 2: Check if this is an accepted material-only item

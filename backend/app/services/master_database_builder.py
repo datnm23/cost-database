@@ -29,6 +29,7 @@ from app.models.line_item import LineItem
 from app.models.master_synonym import MasterSynonym
 from app.models.master_work_item import MasterWorkItem
 from app.models.pending_master_item import PendingMasterItem
+from app.models.project_work_item import ProjectWorkItem
 from app.models.quarantine_log import QuarantineLog
 from app.services.master_data_gatekeeper import get_gatekeeper
 from app.services.normalization_orchestrator import get_normalization_orchestrator
@@ -106,6 +107,7 @@ class MasterBuildResult:
     total_quarantined: int = 0
     total_updated: int = 0
     total_synonyms_added: int = 0
+    total_project_items: int = 0
 
 
 class MasterDatabaseBuilder:
@@ -216,6 +218,7 @@ class MasterDatabaseBuilder:
         result.total_quarantined = step3_result.total_quarantined
         result.total_updated = step3_result.total_updated
         result.total_synonyms_added = step3_result.total_synonyms_added
+        result.total_project_items = step3_result.total_project_items
 
         if progress_callback:
             progress_callback("done", 3, 3)
@@ -353,6 +356,7 @@ class MasterDatabaseBuilder:
             'rejected': 0,
             'updated': 0,
             'synonyms_added': 0,
+            'project_items': 0,
             'by_sec_code': defaultdict(int),
         }
 
@@ -383,6 +387,7 @@ class MasterDatabaseBuilder:
                 'approved': stats['approved'],
                 'pending': stats['pending'],
                 'rejected': stats['rejected'],
+                'project_items': stats['project_items'],
                 'updated': stats['updated'],
                 'by_sec_code': dict(stats['by_sec_code']),
             }
@@ -392,6 +397,7 @@ class MasterDatabaseBuilder:
         result.total_quarantined = stats['rejected']
         result.total_updated = stats['updated']
         result.total_synonyms_added = stats['synonyms_added']
+        result.total_project_items = stats['project_items']
 
         return result
 
@@ -557,17 +563,77 @@ class MasterDatabaseBuilder:
             stats['pending'] += 1
 
         else:
-            # Rejected
+            # Rejected — route to quarantine or project_work_items
             primary_reason = gk_result.reasons[0] if gk_result.reasons else 'Unknown'
-            quarantine = QuarantineLog(
-                description=item.canonical_description,
-                description_normalized=desc_normalized,
-                rejection_reason=primary_reason[:500],
-                quality_score=gk_result.score,
-                quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None,
-            )
-            self.db.add(quarantine)
-            stats['rejected'] += 1
+            if gk_result.is_forbidden_pattern:
+                # Garbage pattern → quarantine
+                quarantine = QuarantineLog(
+                    description=item.canonical_description,
+                    description_normalized=desc_normalized,
+                    rejection_reason=primary_reason[:500],
+                    quality_score=gk_result.score,
+                    quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None,
+                )
+                self.db.add(quarantine)
+                stats['rejected'] += 1
+            else:
+                # Legitimate low-score → project work item with RED gate
+                pwi = self._create_project_work_item(
+                    description=item.canonical_description,
+                    normalized_description=desc_normalized,
+                    quality_score=gk_result.score,
+                    gate_status='RED',
+                    unit=item.canonical_unit,
+                    source_file_ids=item.source_file_ids,
+                )
+                self.db.add(pwi)
+                stats['project_items'] += 1
+
+    def _create_project_work_item(
+        self,
+        description: str,
+        normalized_description: str,
+        quality_score: float,
+        gate_status: str,
+        unit: Optional[str] = None,
+        source_file_ids: Optional[List[int]] = None,
+        project_id: Optional[int] = None,
+        file_id: Optional[int] = None,
+    ) -> ProjectWorkItem:
+        """Create a ProjectWorkItem with auto-generated temp_code."""
+        # Resolve project_id from source files if not provided
+        if project_id is None and source_file_ids:
+            from app.models.boq_file import BOQFile
+            boq = self.db.query(BOQFile).filter(
+                BOQFile.file_id == source_file_ids[0]
+            ).first()
+            if boq:
+                project_id = boq.project_id
+
+        if file_id is None and source_file_ids:
+            file_id = source_file_ids[0]
+
+        # Generate temp code
+        temp_code = self._next_temp_code(project_id or 0)
+
+        return ProjectWorkItem(
+            project_id=project_id or 0,
+            file_id=file_id or 0,
+            original_description=description,
+            normalized_description=normalized_description,
+            temp_code=temp_code,
+            quality_score=quality_score,
+            gate_status=gate_status,
+            unit=unit,
+            resolution_status='UNRESOLVED',
+        )
+
+    def _next_temp_code(self, project_id: int) -> str:
+        """Generate next unique temp code for a project."""
+        max_seq = self.db.query(func.count(ProjectWorkItem.pwi_id)).filter(
+            ProjectWorkItem.project_id == project_id,
+        ).scalar() or 0
+        return f"PRJ.{project_id}-TEMP-{max_seq + 1:03d}"
 
     def _link_master_to_line_items(
         self,

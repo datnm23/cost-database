@@ -19,6 +19,7 @@ import CodeManagement from './pages/CodeManagement'
 import SynonymManagement from './pages/SynonymManagement'
 import SystemHealth from './pages/SystemHealth'
 import TemplateManagement from './pages/TemplateManagement'
+import ProjectWorkItemsReview from './pages/ProjectWorkItemsReview'
 import { useAuthStore } from './store/authStore'
 
 const { Content } = Layout
@@ -51,6 +52,7 @@ function App() {
                   <Route path="/synonyms" element={<SynonymManagement />} />
                   <Route path="/system-health" element={<SystemHealth />} />
                   <Route path="/templates" element={<TemplateManagement />} />
+                  <Route path="/project-work-items" element={<ProjectWorkItemsReview />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

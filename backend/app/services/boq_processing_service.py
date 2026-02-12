@@ -31,6 +31,7 @@ from sqlalchemy import func
 from app.models.line_item import LineItem
 from app.models.master_work_item import MasterWorkItem
 from app.models.pending_master_item import PendingMasterItem
+from app.models.project_work_item import ProjectWorkItem
 from app.models.quarantine_log import QuarantineLog
 from app.services.normalization_orchestrator import get_normalization_orchestrator
 from app.services.work_code_generator import WorkCodeGenerator
@@ -112,12 +113,16 @@ class BOQProcessingService:
             file_id: ID của BOQ file
             items: List of dicts with 'description', 'unit', 'quantity', 'unit_price'
             auto_add_to_master: Tự động thêm công tác mới vào master
-            processing_method: "3_tier" (hybrid) or "ai_only" (100% AI semantic)
+            processing_method: "3_tier" (hybrid), "ai_only" (100% AI semantic), or "cost_funnel" (5-stage cascade)
 
         Returns:
             ProcessingResult với thống kê và chi tiết
         """
-        logger.info(f"Processing {len(items)} items from file {file_id}")
+        logger.info(f"Processing {len(items)} items from file {file_id} (method={processing_method})")
+
+        # Cost funnel pipeline — separate flow
+        if processing_method == "cost_funnel":
+            return self._process_with_cost_funnel(file_id, items)
 
         # Step 1: Extract descriptions
         descriptions = [item.get('description', '') for item in items if item.get('description')]
@@ -720,25 +725,49 @@ class BOQProcessingService:
         self.db.add(pending_item)
 
     def _log_quarantine(self, file_id: int, item: MatchResult, gk_result):
-        """Log rejected item to quarantine for analysis"""
-        # Get primary rejection reason
+        """Route rejected item to quarantine (garbage) or project work items (legitimate low-score)."""
         primary_reason = gk_result.reasons[0] if gk_result.reasons else 'Unknown'
 
-        # Check if it was a forbidden pattern match
-        forbidden_pattern = None
-        if 'Forbidden pattern' in primary_reason:
-            forbidden_pattern = primary_reason.split(':')[-1].strip() if ':' in primary_reason else primary_reason
+        if gk_result.is_forbidden_pattern:
+            # Garbage pattern → quarantine
+            forbidden_pattern = None
+            if 'Forbidden pattern' in primary_reason:
+                forbidden_pattern = primary_reason.split(':')[-1].strip() if ':' in primary_reason else primary_reason
 
-        quarantine_log = QuarantineLog(
-            description=item.original_description,
-            description_normalized=item.normalized_description,
-            source_file_id=file_id,
-            rejection_reason=primary_reason[:500],  # Truncate to fit column
-            quality_score=gk_result.score,
-            matched_forbidden_pattern=forbidden_pattern[:100] if forbidden_pattern else None,
-            quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None
-        )
-        self.db.add(quarantine_log)
+            quarantine_log = QuarantineLog(
+                description=item.original_description,
+                description_normalized=item.normalized_description,
+                source_file_id=file_id,
+                rejection_reason=primary_reason[:500],
+                quality_score=gk_result.score,
+                matched_forbidden_pattern=forbidden_pattern[:100] if forbidden_pattern else None,
+                quality_indicators=json.dumps(gk_result.indicators) if gk_result.indicators else None
+            )
+            self.db.add(quarantine_log)
+        else:
+            # Legitimate low-score → project work item with RED gate
+            from app.models.boq_file import BOQFile
+            boq = self.db.query(BOQFile).filter(BOQFile.file_id == file_id).first()
+            project_id = boq.project_id if boq else 0
+
+            # Generate temp code
+            from sqlalchemy import func as sqla_func
+            max_seq = self.db.query(sqla_func.count(ProjectWorkItem.pwi_id)).filter(
+                ProjectWorkItem.project_id == project_id,
+            ).scalar() or 0
+            temp_code = f"PRJ.{project_id}-TEMP-{max_seq + 1:03d}"
+
+            pwi = ProjectWorkItem(
+                project_id=project_id,
+                file_id=file_id,
+                original_description=item.original_description,
+                normalized_description=item.normalized_description,
+                temp_code=temp_code,
+                quality_score=gk_result.score,
+                gate_status='RED',
+                resolution_status='UNRESOLVED',
+            )
+            self.db.add(pwi)
 
     def process_line_items(
         self,
@@ -775,6 +804,54 @@ class BOQProcessingService:
         ]
 
         return self.process_boq_items(file_id, items, auto_add_to_master, processing_method)
+
+    def _process_with_cost_funnel(self, file_id: int, items: List[Dict]) -> ProcessingResult:
+        """Process items using the 5-stage cost funnel pipeline."""
+        from app.services.cost_funnel import get_cost_funnel
+        from app.models.boq_file import BOQFile
+
+        # Get project_id from file
+        boq = self.db.query(BOQFile).filter(BOQFile.file_id == file_id).first()
+        project_id = boq.project_id if boq else 0
+
+        funnel = get_cost_funnel(self.db)
+        funnel_result = funnel.process(items, project_id, file_id)
+
+        # Convert funnel results to ProcessingResult
+        exact_matches = sum(1 for ir in funnel_result.item_results if ir.gate_status == 'GREEN' and ir.master_id)
+        fuzzy_matches = sum(1 for ir in funnel_result.item_results if ir.gate_status == 'YELLOW')
+        new_items = sum(1 for ir in funnel_result.item_results if ir.gate_status == 'RED')
+
+        match_results = []
+        for ir in funnel_result.item_results:
+            match_type = 'new'
+            if ir.master_id:
+                match_type = 'exact' if ir.similarity_score >= 0.95 else 'fuzzy'
+
+            match_results.append(MatchResult(
+                original_description=ir.original_description,
+                normalized_description=ir.normalized_description or ir.original_description,
+                match_type=match_type,
+                similarity_score=ir.similarity_score,
+                master_work_code=ir.master_work_code,
+                needs_review=(ir.gate_status == 'YELLOW'),
+            ))
+
+        self.db.commit()
+
+        return ProcessingResult(
+            total_extracted=funnel_result.total_items,
+            unique_raw=funnel_result.total_items,
+            unique_normalized=funnel_result.total_items,
+            exact_matches=exact_matches,
+            fuzzy_matches=fuzzy_matches,
+            new_items=new_items,
+            items=match_results,
+            new_items_deduped=new_items,
+            gatekeeper_approved=exact_matches,
+            gatekeeper_pending=fuzzy_matches,
+            gatekeeper_rejected=new_items,
+        )
 
     def get_match_summary(self, result: ProcessingResult) -> Dict:
         """

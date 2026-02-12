@@ -25,6 +25,9 @@ from dataclasses import dataclass, field
 
 from app.core.config import settings
 from app.services.description_normalizer import DescriptionNormalizer
+from app.services.ai_structured_schema import (
+    StructuredWorkItem, GEMINI_STRUCTURED_SCHEMA,
+)
 
 if TYPE_CHECKING:
     from app.services.file_context_analyzer import FileContext
@@ -629,6 +632,177 @@ Trả về JSON:
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse batch AI response as JSON: {e}")
             return None
+
+    # ── Structured Output Methods (WP4) ──
+
+    STRUCTURED_SYSTEM_PROMPT = """Bạn là chuyên gia phân tích công việc xây dựng Việt Nam.
+
+## NHIỆM VỤ:
+Phân tích mỗi mô tả công việc và trả về cấu trúc JSON với các trường sau.
+
+## QUY TẮC CHỐNG HALLUCINATION:
+1. CHỈ trích xuất thông tin CÓ TRONG bản gốc
+2. KHÔNG tự thêm grade, material, dimension nếu không có trong input
+3. Nếu không xác định được → set null cho trường đó
+4. Thêm tên trường vào ambiguous_fields nếu không chắc chắn
+5. confidence < 0.7 nếu thiếu nhiều thông tin
+
+## NHÓM CÔNG TÁC (group):
+- CONC: Bê tông (đổ bê tông, bê tông lót, bê tông kết cấu)
+- RBAR: Cốt thép (cốt thép, thép, sắt)
+- FWRK: Ván khuôn (coffa, cốp pha)
+- PIPE: Ống (cấp nước, thoát nước, ống HDPE/PVC/PPR)
+- ELEC: Điện (cáp điện, tủ điện, aptomat, MCCB)
+- HVAC: Điều hòa/thông gió
+- ROAD: Đường (BTN, asphalt, vỉa hè)
+- ERTH: Đất/cọc (đào, đắp, san, ép cọc)
+- FNSH: Hoàn thiện (trát, lát, ốp, sơn, xây tường)
+- MISC: Khác
+
+## LOẠI CÔNG TÁC (type):
+- STR: Kết cấu/cấu trúc
+- LEA: Chống thấm
+- SUP: Cung cấp vật tư
+- INS: Lắp đặt
+- EXC: Đào/đắp
+
+## VỊ TRÍ (location):
+- COL: Cột
+- BEM: Dầm
+- SLB: Sàn
+- FND: Móng
+- WAL: Tường
+
+## WBS CONTEXT:
+Nếu có WBS context, sử dụng thông tin section_path và parent_title để:
+- Xác định chính xác group
+- Cải thiện normalized_description
+"""
+
+    def _call_ai_structured(self, items_with_context: List[Dict]) -> Optional[List[Dict]]:
+        """
+        Call Gemini with structured JSON output using responseSchema.
+
+        Args:
+            items_with_context: List of dicts with 'description' and optional 'wbs_context'
+
+        Returns:
+            List of structured output dicts or None
+        """
+        if not items_with_context:
+            return None
+
+        client = self._get_client()
+        if not client or self.provider != "gemini":
+            # For non-Gemini providers, fall back to regular prompt
+            return self._call_ai_structured_fallback(items_with_context)
+
+        # Build prompt with WBS context
+        items_text = ""
+        for i, item in enumerate(items_with_context):
+            desc = item.get('description', '')
+            wbs = item.get('wbs_context')
+            if wbs:
+                items_text += f"\n{i+1}. \"{desc}\"\n   WBS: section={wbs.get('section_path', '')}, parent={wbs.get('parent_title', '')}\n"
+            else:
+                items_text += f"\n{i+1}. \"{desc}\"\n"
+
+        prompt = f"Phân tích {len(items_with_context)} mô tả công việc sau:\n{items_text}"
+
+        try:
+            import requests
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+            headers = {
+                "Content-Type": "application/json",
+                "X-goog-api-key": settings.GEMINI_API_KEY,
+            }
+            data = {
+                "contents": [{
+                    "parts": [{"text": f"{self.STRUCTURED_SYSTEM_PROMPT}\n\n{prompt}"}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 2000,
+                    "responseMimeType": "application/json",
+                    "responseSchema": GEMINI_STRUCTURED_SCHEMA,
+                },
+            }
+            response = requests.post(url, headers=headers, json=data, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+
+            if "candidates" in result and len(result["candidates"]) > 0:
+                candidate = result["candidates"][0]
+                if "content" in candidate and "parts" in candidate["content"]:
+                    text = candidate["content"]["parts"][0].get("text", "")
+                    return json.loads(text)
+            return None
+        except Exception as e:
+            logger.error(f"Structured AI call failed: {e}")
+            return None
+
+    def _call_ai_structured_fallback(self, items_with_context: List[Dict]) -> Optional[List[Dict]]:
+        """Fallback for non-Gemini providers: use regular prompt with JSON instruction."""
+        items_text = ""
+        for i, item in enumerate(items_with_context):
+            desc = item.get('description', '')
+            wbs = item.get('wbs_context')
+            if wbs:
+                items_text += f"\n{i+1}. \"{desc}\" (WBS: {wbs.get('section_path', '')})"
+            else:
+                items_text += f"\n{i+1}. \"{desc}\""
+
+        prompt = (
+            f"{self.STRUCTURED_SYSTEM_PROMPT}\n\n"
+            f"Phân tích {len(items_with_context)} mô tả:\n{items_text}\n\n"
+            "Trả về JSON array với format StructuredWorkItem cho mỗi item."
+        )
+
+        response = self._call_ai(prompt)
+        if response:
+            return self._parse_batch_response(response)
+        return None
+
+    def normalize_structured_batch(
+        self,
+        items: List[str],
+        wbs_contexts: Optional[Dict[int, Dict]] = None,
+        batch_size: int = 10,
+    ) -> List[Optional[StructuredWorkItem]]:
+        """
+        Normalize a batch of items with structured LLM output.
+
+        Args:
+            items: List of description strings
+            wbs_contexts: Optional dict mapping index -> WBS context dict
+            batch_size: Number of items per LLM call
+
+        Returns:
+            List of StructuredWorkItem or None for failed items
+        """
+        results: List[Optional[StructuredWorkItem]] = [None] * len(items)
+
+        for batch_start in range(0, len(items), batch_size):
+            batch_end = min(batch_start + batch_size, len(items))
+            batch_items = []
+
+            for i in range(batch_start, batch_end):
+                item_dict = {'description': items[i]}
+                if wbs_contexts and i in wbs_contexts:
+                    item_dict['wbs_context'] = wbs_contexts[i]
+                batch_items.append(item_dict)
+
+            structured_results = self._call_ai_structured(batch_items)
+            if structured_results:
+                for j, sr in enumerate(structured_results):
+                    idx = batch_start + j
+                    if idx < len(items):
+                        try:
+                            results[idx] = StructuredWorkItem(**sr)
+                        except Exception as e:
+                            logger.warning(f"Failed to parse structured result for item {idx}: {e}")
+
+        return results
 
 
 # Singleton instance
